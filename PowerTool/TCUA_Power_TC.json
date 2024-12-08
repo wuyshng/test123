@@ -1,0 +1,373 @@
+{
+    "POWER": [
+        {
+            "TC_Name": "TCUA_TC_01",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd power requestset 2025 1",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: request keep Alive via Binder Interface"
+            ],
+            "EXPECTED_RESULT": [
+                "KeepAlive is ACTIVE"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_02",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd power requestset 2025 1",
+                "SEND_COMMAND               , sldd power requestset 2025 0",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: release keep Alive via Binder Interface"
+            ],
+            "EXPECTED_RESULT": [
+                "KeepAlive is INACTIVE"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_03",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd power requestset 3011 77777",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: request keep Alive via SOMEIP Interface",
+                "[Verify]: keepAlive result"
+            ],
+            "EXPECTED_RESULT": [
+                "SomeIPAdapter: requestKeepAlive successfully",
+                "KeepAlive is ACTIVE"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_04",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd power requestset 3011 77777",
+                "SEND_COMMAND               , sldd power requestset 3012 77777",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: release keep Alive via SOMEIP Interface",
+                "[Verify]: keepAlive result"
+            ],
+            "EXPECTED_RESULT": [
+                "SomeIPAdapter: releaseKeepAlive successfully",
+                "KeepAlive is INACTIVE"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_05",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd OperationMode setOperationModeExt 1",
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Request MCU for transition to Sleep",
+                "[Verify]: Transition from Normal to Sleep",
+                "[Verify]: Send PowerMode to Telephony",
+                "[Verify]: shutdown AP (power off)"
+            ],
+            "EXPECTED_RESULT": [
+                "Request MCU to transition successfully",
+                "StateSleep::enter",
+                "sendPowerModeToTelephony",
+                "@@~ System_Off()"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_06",
+            "TEST_STEP": [
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd OperationMode setOperationModeExt 1",
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 20",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: TCUA is Woken up from Sleep by CAN",
+                "[Verify]: Enter Normal power state when waking up"
+            ],
+            "EXPECTED_RESULT": [
+                "CAN_WAKEUP",
+                "StateNormal::enter"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_07",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd power requestset 3008 1",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmInitialReceiveTime 1800",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Transition from Normal to Listen",
+                "[Verify]: Request MCU for state transition",
+                "[Verify]: Send PowerMode to Telephony",
+                "[Verify]: set PwmInitialReceiveTimer",
+                "[Verify]: suspend AP"
+            ],
+            "EXPECTED_RESULT":[
+                "StateListen::enter",
+                "$$ Receive ACK from MCU >> AP will enter Listen",
+                "sendPowerModeToTelephony",
+                "startPwmInitialReceiveTimer",
+                "AP_Suspend"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_08",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd power requestset 3008 1",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmInitialReceiveTime 60",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 20",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: TCUA is Woken up from Listen by RTC",
+                "[Verify]: Wakeup reason is RTC",
+                "[Verify]: PwmInitialReceiveTimer expired",
+                "[Verify]: AP wakeups MCU",
+                "[Verify]: Enter Normal power state"
+            ],
+            "EXPECTED_RESULT":[
+                "wake_up",
+                "NAD_BY_IRQ_RTC",
+                "onPmwInitialReciveTimerExpired",
+                "AP wakes up MCU successfully",
+                "StateNormal::enter"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_09",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd power requestset 3008 1",
+                "SEND_COMMAND               , sldd power requestset 3007 1",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmSleepTime 120",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Transition to Polling when PwmInitialReceiveTimer expired",
+                "[Verify]: Set PwmSleepTime when transitioning to Polling",
+                "[Verify]: Set ScheduleWakeup to MCU",
+                "[Verify]: Transition to Sleep",
+                "[Verify]: shutdown AP (power off)"
+            ],
+            "EXPECTED_RESULT":[
+                "StatePolling::enter",
+                "setPwmSleepTime",
+                "Set ScheduleWakeup to MCU successfully",
+                "StateSleep::enter",
+                "@@~ System_Off()"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_10",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3007 5",
+                "SEND_COMMAND               , sldd power requestset 3008 1",
+                "SEND_COMMAND               , sldd power requestset 3007 1",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmReceiveTime 120",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmSleepTime 120",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 140",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Wakeup from Polling Sleep by RTC",
+                "[Verify]: Start PwmReceiveTimer on wakeup from Polling Sleep by RTC",
+                "[Verify]: PwmReceiveTimer expired",
+                "[Verify]: Enter Polling when PwmReceiveTimer expired",
+                "[Verify]: Transition to Sleep",
+                "[Verify]: shutdown AP (power off)"
+            ],
+            "EXPECTED_RESULT":[
+                "RTC_WAKEUP",
+                "startPwmReceiveTimer",
+                "onPwmReceiveTimerExpired",
+                "StatePolling::enter",
+                "StateSleep::enter",
+                "@@~ System_Off()"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_11",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_COMMAND               , sldd power requestset 3008 1",
+                "SEND_COMMAND               , sldd power requestset 3007 1",
+                "SEND_COMMAND               , sldd power requestset 3007 3",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: FirstPeriodicCycleTimer expired",
+                "[Verify]: Enter PollingExt when FirstPeriodicCycleTimer expired",
+                "[Verify]: Enter Sleep from PollingExt",
+                "[Verify]: shutdown AP (power off)"
+            ],
+            "EXPECTED_RESULT":[
+                "FirstPeriodicCycleTimer expired !!!",
+                "StatePollingExt::enter",
+                "StateSleep::enter",
+                "@@~ System_Off()"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_12",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "REMOVE_VBAT                , REMOVE_VBAT",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Transition to Backup battery mode when VBAT is removed",
+                "[Verify]: Start BUBAwakeTimer",
+                "[Verify]: Transition from BUB to Sleep when sleep condition are met",
+                "[Verify]: shutdown AP (power off)"
+            ],
+            "EXPECTED_RESULT":[
+                "StateBackupBattery::enter",
+                "setTimer: BUB_AWAKE_TIMER",
+                "StateSleep::enter",
+                "@@~ System_Off()"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_13",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 2023 4",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "REMOVE_VBAT                , REMOVE_VBAT",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Transition from BUB to Listen when bCall in callback",
+                "[Verify]: check criticalAppMask: bCall"
+            ],
+            "EXPECTED_RESULT":[
+                "StateListen::enter",
+                "criticalApp[Bcall]: ON"
+            ]
+        },
+        {
+            "TC_Name": "TCUA_TC_14",
+            "TEST_STEP": [
+                "RESET_BOARD                , RESET_BOARD",
+                "WAIT_FOR_STATE_TRANSITION  , 5",
+                "SEND_CAN_NM                , CAN_BUS_ACTIVE",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 2023 2",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "REMOVE_VBAT                , REMOVE_VBAT",
+                "STOP_CAN_NM                , CAN_BUS_SLEEP",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Transition from BUB to Listen when eCall in callback",
+                "[Verify]: check criticalAppMask: eCall"
+            ],
+            "EXPECTED_RESULT":[
+                "StateBackupBattery::enter",
+                "criticalApp[Ecall]: ON"
+            ]
+        }
+    ]
+}

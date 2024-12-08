@@ -1,0 +1,90 @@
+{
+    "Module": [
+        {
+            "name": "AppMgr_Service",
+            "sldd": [
+                "sldd am get_bootcomplete",
+                "sldd am getAllFeaturesByPriority"
+            ]
+        },
+        {
+            "name": "Power_Service",
+            "sldd": [
+                "sldd power requestset 2025 1",
+                "sldd power requestset 2025 0",
+                "sldd power requestget 2025",
+                "sldd power requestget 2011",
+                "sldd power requestget 2012",
+                "sldd power requestget 4002",
+                "sldd power input TEST_POWER_LOCK 1",
+                "sldd power input TEST_POWER_LOCK 0",
+                "sldd power requestset 3007 1",
+                "sldd power requestset 3007 2",
+                "sldd power requestset 3007 3",
+                "sldd power requestset 3007 4",
+                "sldd power requestset 3007 5",
+                "sldd power requestset 3008 1",
+                "sldd power requestget 2031 1",
+                "sldd power requestget 2032 1",
+                "sldd power requestget 2014 1",
+                "sldd power requestget 2015 1",
+                "sldd power requestget 2026"
+            ]
+        },
+        {
+            "name": "Telephony_Service",
+            "sldd": [
+                "sldd telephony getTcuPowerMode",
+                "sldd telephony setTcuPowerMode 2",
+                "sldd telephony getNadWakeupReason",
+                "sldd telephony getservicestate",
+                "sldd telephony getVoLteEnabled",
+                "sldd telephony answerCall",
+                "sldd telephony endCall",
+                "sldd telephony getImei",
+                "sldd telephony isRadioOn"
+            ]
+        },
+        {
+            "name": "Time_Service",
+            "sldd": [
+                "sldd tm gettime",
+                "sldd tm getTimeStamp"
+            ]
+        },
+        {
+            "name": "OpMode_Service",
+            "sldd": [
+                "sldd OperationMode getOperationMode",
+                "sldd OperationMode setOperationMode 1",
+                "sldd OperationMode setOperationMode 2",
+                "sldd OperationMode setOperationMode 3",
+                "sldd OperationMode setOperationMode 4"
+            ]
+        },
+        {
+            "name": "Log_Service",
+            "sldd": [
+                "sldd cfg setConfigData provisioneddata TCUALoggingOnOff 1"
+            ]
+        },
+        {
+            "name": "Diag_Service",
+            "sldd": [
+                "sldd Diag executeUdsRequest 1 1101",
+                "sldd Diag executeUdsRequest 1 1102",
+                "sldd Diag executeUdsRequest 1 1140"
+            ]
+        },
+        {
+            "name": "Config_Service",
+            "sldd": [
+                "sldd cfg setConfigData ProvisionedData EVAC_VCM_KEEPALIVE_TIMEOUT 1800",
+                "sldd cfg setConfigData ProvisionedData PwmInitialReceiveTime 86400",
+                "sldd cfg setConfigData ProvisionedData PwmSleepTime 14400",
+                "sldd cfg setConfigData ProvisionedData PwmReceiveTime 120",
+                "sldd cfg setConfigData ProvisionedData PwmFirstPeriodicCycle 518400"
+            ]
+        }
+    ]
+}

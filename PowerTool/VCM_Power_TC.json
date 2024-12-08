@@ -1,0 +1,170 @@
+{
+    "POWER": [
+        {
+            "TC_Name": "VCM_TC_01",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: VCM transitions to Listen mode",
+                "[Verify]: PwmInitialReceiveTime should start"
+            ],
+            "EXPECTED_RESULT": [
+                "StateListen::enter",
+                "startPwmInitialReciveTimer"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_TC_02",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: VCM is woken up from Listen by TC10 wakeup"
+            ],
+            "EXPECTED_RESULT":[
+                "WU_MCU_EPHY_INH"
+            ]
+        },
+        {
+            "TC_Name": "VCM_TC_03",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmInitialReceiveTime 60",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: VCM is woken up from Listen by AP RTC",
+                "[Verify]: PmwInitialReciveTimer expired"
+            ],
+            "EXPECTED_RESULT":[
+                "wakeup by AP (RTC Wakeup)",
+                "onPmwInitialReciveTimerExpired"
+            ]
+        },
+        {
+            "TC_Name": "VCM_TC_04",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "SEND_COMMAND               , sldd power requestset 3006 1",
+                "WAIT_FOR_STATE_TRANSITION  , 20",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: VCM transitions to Polling mode",
+                "[Verify]: VCM should start PwmSleep Time when transitioning to Polling",
+                "[Verify]: VCM should set RTC wakeup when transitioning to Polling"
+            ],
+            "EXPECTED_RESULT":[
+                "StatePolling::enter",
+                "setPwmSleepTime",
+                "setRTCWakeupScheduleToMCU"
+            ]
+        },
+        {
+            "TC_Name": "VCM_TC_05",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmSleepTime 120",
+                "SEND_COMMAND               , sldd cfg setConfigData ProvisionedData PwmReceiveTime 120",
+                "SEND_COMMAND               , sldd power requestset 3006 1",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 60",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Wakeup from Polling Sleep by RTC",
+                "[Verify]: PwmSleepTimer expired when VCM is woken up from Polling Sleep by RTC",
+                "[Verify]: VCM should start PwmReceiveTimer when waking up from Polling Sleep by RTC"
+            ],
+            "EXPECTED_RESULT":[
+                "WU_MCU_MCU_RTC",
+                "setPwmSleepTimerExpired",
+                "startPwmReceiveTimer"
+            ]
+        },
+        {
+            "TC_Name": "VCM_TC_06",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd OperationMode setOperationMode 3",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "SEND_COMMAND               , sldd power requestset 3006 1",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: Wakeup from Polling Sleep by TC10"
+            ],
+            "EXPECTED_RESULT":[
+                "WU_MCU_EPHY_INH"
+            ]
+        },
+        {
+            "TC_Name": "VCM_TC_07",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd OperationMode setOperationModeExt 0",
+                "SEND_COMMAND               , sldd power requestset 3021 10",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "SEND_TC10_OFF              , SEND_TC10_OFF",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: VCM transitions to Sleep mode"
+            ],
+            "EXPECTED_RESULT":[
+                "StateSleep::enter"
+            ]
+        }
+    ]
+}

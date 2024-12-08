@@ -1,0 +1,157 @@
+{
+    "POWER": [
+        {
+            "TC_Name": "VCM_SWIT_API_1_1",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "START_TO_GET_LOGS          , START_TO_GET_LOGS",
+                "SEND_COMMAND               , sldd power reboot 0",
+                "WAIT_FOR_STATE_TRANSITION  , 30",
+                "VERIFY_LOG                 , VERIFY_LOG"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 1: Power reboot with valid reason"
+            ],
+            "EXPECTED_RESULT": [
+                "reboot() execute shutdown shell command"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_1_2",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "SEND_COMMAND               , sldd power reboot 10",
+                "WAIT_FOR_STATE_TRANSITION  , 10",
+                "VERIFY_ADB_OUTPUT          , sldd power state"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 1: Power reboot with invalid reason"
+            ],
+            "EXPECTED_RESULT": [
+                "POWER_STATE_NORMAL ( 1)"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_2_1",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power powerlock -1 -1",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 2,3: id:F && lock_type:F"
+            ],
+            "EXPECTED_RESULT": [
+                "Failed to acquire power lock"
+            ]
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_2_2",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power powerlock -1 0",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 2,3: id:F && lock_type:T"
+            ],
+            "EXPECTED_RESULT": [
+                "acquire_lock() success"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_2_3",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power powerlock 5 -1",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 2,3: id:T && lock_type:F"
+            ],
+            "EXPECTED_RESULT": [
+                "Failed to acquire power lock"
+            ]
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_2_4",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power powerlock 5 2",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 2,3: id:T && lock_type:T"
+            ],
+            "EXPECTED_RESULT": [
+                "acquire_lock() success"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_4_1",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power requestset 9999 5",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 4: power_index:F && value:T"
+            ],
+            "EXPECTED_RESULT": [
+                "requestToSet - Fail"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_4_2",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power requestset 2026 5",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 4: power_index:F && value:T"
+            ],
+            "EXPECTED_RESULT": [
+                "requestToSet - Fail"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_4_3",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power requestset 9999 0",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 4: power_index:T && value:F"
+            ],
+            "EXPECTED_RESULT": [
+                "requestToSet - Fail"
+            ] 
+        },
+        {
+            "TC_Name": "VCM_SWIT_API_4_4",
+            "TEST_STEP": [
+                "SEND_TC10_ON               , SEND_TC10_ON",
+                "WAIT_FOR_DEVICE_READY      , WAIT_FOR_DEVICE_READY",
+                "VERIFY_ADB_OUTPUT          , sldd power requestset 2026 0",
+                "WAIT_FOR_STATE_TRANSITION  , 10"
+            ],
+            "DESCRIPTION" : [
+                "[Verify]: API 4: power_index:T && value:T"
+            ],
+            "EXPECTED_RESULT": [
+                "requestToSet - Success"
+            ] 
+        }
+    ]
+}
