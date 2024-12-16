@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from datetime import datetime, timedelta
 from PyQt5 import QtCore
@@ -7,13 +8,17 @@ from PyQt5.QtCore import pyqtSignal, QObject
 class DownloadManager(QObject):
     downloadSignal = pyqtSignal(str)
     downloadProgressSignal = pyqtSignal(int)
+    defaultImgURLSignal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
+        self.isDownloading = False
+        self.isStopped = False
         self.boardName = None
         self.boardInfo = None
         self.imageName = "upload_images.tar.gz"
         self.dailyRepo = None
+        self.downloadFromURL = ""
 
     def getBoardInfo(self):
         if self.boardName == "JLR_VCM":
@@ -50,13 +55,16 @@ class DownloadManager(QObject):
                 self.downloadSignal.emit(
                                         f"Image Name: {self.imageName}\n"
                                         f"Daily Repo: {self.dailyRepo}\n"
-                                        f"Downloading from {url}\n"
-                                        f"Downloading image... "
+                                        f"Download from {url}\n"
+                                        f"Downloading image ..."
                 )
-
+                self.isDownloading = True
                 downloaded_size = 0
                 with open(filename, "wb") as file:
                     for chunk in response.iter_content(chunk_size=8192):
+                        if self.isStopped:
+                            self.downloadSignal("Download stopped.\n")
+                            return False
                         if chunk:
                             file.write(chunk)
                             downloaded_size += len(chunk)
@@ -64,10 +72,12 @@ class DownloadManager(QObject):
                             self.progress_percentage = int((downloaded_size / total_size) * 100)
                             self.downloadProgressSignal.emit(self.progress_percentage)
 
-                self.downloadSignal.emit(f"Download successful. File saved at: {filename}")
+                self.downloadSignal.emit(f"Download successful. File saved at: {dest_dir}\n")
+                self.isDownloading = False
                 return True
 
         except requests.RequestException as e:
+            self.downloadSignal.emit(f"Error:{e} ")
             return False
 
     def findValidImg(self, baseURL, dateStr, dest_dir, username=None, password=None):
@@ -79,6 +89,8 @@ class DownloadManager(QObject):
             self.dailyRepo = f"{self.boardInfo['BOARD_NAME']}_DAILY_BUILD_{try_date}"
             try_url = f"{baseURL}/{self.dailyRepo}/debug/{self.imageName}"
 
+            if self.isStopped == True:
+                return False
 
             if self.downloadImgFile(try_url, dest_dir, username, password):
                 return True
@@ -93,10 +105,32 @@ class DownloadManager(QObject):
 
             currentDate = datetime.now().strftime("%y%m%d")
             self.dailyRepo = f"{boardInfo['BOARD_NAME']}_DAILY_BUILD_{currentDate}"
+            self.defaultImgURLSignal.emit(f'{boardInfo["ARTIFACTORY_BASE_URL"]}/{self.dailyRepo}/debug/{self.imageName}')
+
             self.boardDir = self.createImgDirectory()
 
-            if not self.findValidImg(artifactoryBaseURL, currentDate, self.boardDir, username, password):
-                self.downloadSignal.emit("Failed to download image from any available URL.")
+            if self.downloadFromURL != "":
+                match = re.search(f"{boardInfo['BOARD_NAME']}_DAILY_BUILD_(\\d+)", self.downloadFromURL)
+                if match:
+                    self.dailyRepo = f"{boardInfo['BOARD_NAME']}_DAILY_BUILD_{match.group(1)}"
+
+                if not self.downloadImgFile(self.downloadFromURL, self.boardDir, username, password):
+                    # self.downloadSignal.emit("Download stopped.\n")
+                    return False
+                else:
+                    return True
+
+            else:
+                if not self.findValidImg(artifactoryBaseURL, currentDate, self.boardDir, username, password):
+                    self.downloadSignal.emit("Download stopped.\n")
+                    return False
+                else:
+                    return True
 
         except Exception as e:
-            self.downloadSignal.emit(f"Error during execution: {e}")
+            # self.downloadSignal.emit(f"Error during execution: {e}")
+            print(f"Error during execution: {e}")
+
+    def stop(self):
+        if self.isDownloading == True:
+            self.isStopped = True

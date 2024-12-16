@@ -1,9 +1,9 @@
-from robot import run
-from robot.api import ExecutionResult, ResultVisitor
-from PyQt5 import QtCore
-from PyQt5.QtCore import pyqtSignal
 import os
 import threading
+from PyQt5 import QtCore
+from PyQt5.QtCore import pyqtSignal
+from robot import run
+from robot.api import ExecutionResult, ResultVisitor
 
 
 class TestResultVisitor(ResultVisitor):
@@ -23,23 +23,96 @@ class TestResultVisitor(ResultVisitor):
 
 
 class StopExecutionListener:
-    ROBOT_LISTENER_API_VERSION = 2
+    ROBOT_LISTENER_API_VERSION = 3
 
-    def __init__(self, stop_event):
+    def __init__(self, stop_event, logSignal):
         self.stop_event = stop_event
+        self.logSignal = logSignal
+        self.lineWidth = 78
+        self.maxLength = 69
+    
+    def start_suite(self, suite, result):
+        self.testCount = 0
+        self.testPassed = 0
+        self.testFailed = 0
+        self.testSkipped = 0
 
-    def start_test(self, name, attrs):
+        # Log suite name and first line of documentation only for leaf suites
+        if suite.tests:  # Suite has tests
+            self.logSignal.emit(f"<pre>{'=' * self.lineWidth}</pre>")
+            if suite.doc:
+                first_line = suite.doc.strip().splitlines()[0]
+                self.logSignal.emit(f"<pre>{suite.name} :: {first_line}</pre>")
+            else:
+                self.logSignal.emit(f"<pre>{suite.name}</pre>")
+            self.logSignal.emit(f"<pre>{'=' * self.lineWidth}</pre>")
+
+    def end_test(self, test, result):
         if self.stop_event.is_set():
             raise SystemExit("Test execution stopped by user.")
+        
+        self.testCount += 1
+        if result.passed:
+            status = "<font color='green'>PASS</font>"
+            self.testPassed += 1
+        elif result.skipped:
+            status = "<font color='yellow'>SKIP</font>"
+            self.testSkipped += 1
+        else:
+            status = "<font color='red'>FAIL</font>"
+            self.testFailed += 1
 
-    def end_test(self, name, attrs):
-        pass
+        test_name = test.name.strip()
+
+        if len(test_name) > self.maxLength:
+            test_name = test_name[:self.maxLength - 3] + "..."  # Truncate with '...'
+
+        padded_test_name = test_name.ljust(self.maxLength)
+
+        self.logSignal.emit(f"<pre>{padded_test_name} | {status} |</pre>")
+
+        # Log failure or skip message
+        if not result.passed:
+            failure_message = result.message.strip()
+            self.logSignal.emit(f"<pre>{failure_message}</pre>")
+        
+        self.logSignal.emit(f"<pre>{'-' * self.lineWidth}</pre>")
+
+    def end_suite(self, suite, result):
+        status = "FAIL" if self.testFailed else "PASS"
+        status_color = "red" if self.testFailed else "green"
+
+        if suite.doc:
+            suite_name = f"{suite.name} :: {suite.doc.strip().splitlines()[0]}"
+        else:
+            suite_name = suite.name
+
+        if len(suite_name) > self.maxLength:
+            suite_name = suite_name[:self.maxLength - 3] + "..."
+        padded_suite_name = suite_name.ljust(self.maxLength)
+
+        self.logSignal.emit(f"<pre>{padded_suite_name} | <font color='{status_color}'>{status}</font> |</pre>")
+
+        summary = f"{self.testCount} tests, {self.testPassed} passed, {self.testFailed} failed, {self.testSkipped} skipped"
+        self.logSignal.emit(f"<pre>{summary}</pre>")
+
+        self.logSignal.emit(f"<pre>{'=' * self.lineWidth}</pre>")
+
+    def output_file(self, path):
+        self.logSignal.emit(f"<pre>Output:  {path}</pre>")
+
+    def log_file(self, path):
+        self.logSignal.emit(f"<pre>Log:     {path}</pre>")
+
+    def report_file(self, path):
+        self.logSignal.emit(f"<pre>Report:  {path}</pre>")
 
 
 class RunRobotTestScript(QtCore.QThread):
-    testResultSignal = pyqtSignal(str)  # Signal to send test result
-    testProgressSignal = pyqtSignal(str)  # Signal to update test progress
-    finishedSignal = pyqtSignal(str)  # Signal to notify test finished
+    testResultSignal = pyqtSignal(str)      # Signal to send test result
+    testProgressSignal = pyqtSignal(str)    # Signal to update test progress
+    finishedSignal = pyqtSignal(str)        # Signal to notify test finished
+    logSignal = pyqtSignal(str)
     testCountSignal = pyqtSignal(int)
 
     def __init__(self, selectedTests, robotFilePath, outputDir, tableWidget):
@@ -61,9 +134,9 @@ class RunRobotTestScript(QtCore.QThread):
             for suite, tests in suiteTests.items():
                 if self.stop_event.is_set():
                     break
-                self.testProgressSignal.emit(f"Running suite: {suite}")
+                # self.testProgressSignal.emit(f"Running suite: {suite}")
                 run(self.robotFilePath, suite=suite, test=tests, outputdir=self.outputDir,
-                    listener=StopExecutionListener(self.stop_event))
+                    listener=StopExecutionListener(self.stop_event, self.logSignal))
                 self.processResults()
 
             if not self.stop_event.is_set():

@@ -64,6 +64,7 @@ NOT_READY        = "Not_ready"
 VBAT_ON          = "VBAT_ON"
 VBAT_OFF         = "VBAT_OFF"
 BUB_ON           = "BUB_ON"
+BUB_OFF          = "BUB_OFF"
 POWER_RESET      = "POWER_RESET"
 CONNECT_ARDUINO  = "CONNECT_ARDUINO"
 
@@ -130,3 +131,12 @@ VERIFY_ADB_OUTPUT           = "VERIFY_ADB_OUTPUT"
 
 # Test case config
 TEST_CASE_START = 1
+
+# Automate QFIL
+DOWNLOAD_IMAGE_ONLY         = "DOWNLOAD_IMAGE_ONLY"
+FLASH_IMAGE_ONLY            = "FLASH_IMAGE_ONLY"
+DOWNLOAD_FLASH_IMAGE        = "DOWNLOAD_FLASH_IMAGE"
+NO_IMAGE_URL                = ""
+DEFAULT_DOWNLOAD_IMAGE_URL  = ""
+VCM_ARTIFACTORY_BASE_URL    = "http://vbas.lge.com:8082/artifactory/vcm/DAILY"  
+TCUA_ARTIFACTORY_BASE_URL   = "http://vbas.lge.com:8082/artifactory/tcua/DAILY"  

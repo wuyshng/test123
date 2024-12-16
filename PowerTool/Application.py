@@ -35,9 +35,9 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 from time import sleep
 import time
 import json
-import robot
 import re
 import os
+from datetime import datetime
 from commonVariable import *
 import serial.tools.list_ports
 from robot.api.parsing import get_model
@@ -106,11 +106,12 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.VCMTestingBoardID = UNKNOWN_ID
         self.VCMSendingTC10BoardID = UNKNOWN_ID
         self.mEthernetManager = EthernetManager()
-        self.loadDefaultTestConfiguration()
-        # self.setupRobotTestCaseTable()
+        # self.loadDefaultTestConfiguration()
+        self.setupRobotTestCaseTable()
         self.mAutomateQFIL = AutomateQFIL()
         self.mAutomateQFIL.signal.connect(self.displayQFILInformation)
         self.mAutomateQFIL.progressSignal.connect(self.displayQFILProgress)
+        self.mAutomateQFIL.defautDownloadURLSignal.connect(self.displayDefaultDonwloadURLSignal)
         self.testFileType = None
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
 
@@ -123,7 +124,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 # Setup Button click handler ===========================================================
     def setupButtonClickHander(self):
         self.setupsendSLDDButton()
-        self.setupDownloadImageButton()
         self.setupConnectBoardButton()
         self.setupActiveCanBusButton()
         self.setupstartTaskButton()
@@ -140,6 +140,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.setUpTC10OffButton()
         self.setUpActionLoadTestCase()
         self.setUpActionLoadRobotTestCase()
+        self.setUpStartFLButton()
+        self.setUpStopFLButton()
 
 # Setup Command for Menu bar ===========================================================
     def setupCommandForMenu(self):
@@ -219,7 +221,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.PowerSourceControl.addItems(port_names)
         self.ArduinoPort = NO_PORT_CONNECTED
         for port in ports:
-            if "USB-SERIAL CH340" in port.description:
+            if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
                 self.ArduinoPort = f"{port.device}"
                 # print(f"Arduino connected to Port: {self.ArduinoPort}")
                 break
@@ -236,9 +238,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
     def setupsendSLDDButton(self):
         self.sendSLDDButton.clicked.connect(self.sendSlddCommandInput)
-
-    def setupDownloadImageButton(self):
-        self.downloadImageButton.clicked.connect(self.startAutomateQFIL)
 
     def setupConnectBoardButton(self):
         self.ConnectBoardButton.clicked.connect(self.connecToBoard)
@@ -284,11 +283,16 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TC10OffButton.clicked.connect(self.onClickTC10OffButton)
 
     def setUpActionLoadTestCase(self):
-        self.actionLoad_test_cases.triggered.connect(self.loadConfigTestCase)
+        self.actionLoad_json_test_cases.triggered.connect(self.loadConfigTestCase)
 
     def setUpActionLoadRobotTestCase(self):
         self.actionLoad_robot_test_cases.triggered.connect(self.loadRobotTestCase)
 
+    def setUpStartFLButton(self):
+        self.startFLButton.clicked.connect(self.startAutomateQFIL)
+
+    def setUpStopFLButton(self):
+        self.stopFLButton.clicked.connect(self.stopAutomateQFIL)
 
 # Send sldd command sellected ===========================================================
 
@@ -306,24 +310,45 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 # Download daily build image from Artifactory ===========================================
     def startAutomateQFIL(self):
-        self.loadRobotFile()
-        
+        self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
         self.mAutomateQFIL.boardName = self.boardName
 
-        self.downloadImageButton.setEnabled(False)
+        self.AutomateQFILAction()
+        if self.mAutomateQFIL.runDownloadOnly == False and self.mAutomateQFIL.runFlashOnly == False:
+            self.show_alert("Flash Loader", "Please select download or flash")
+            return
+        elif self.mAutomateQFIL.runDownloadOnly == True and self.mdeviceStatus != NORMAL:
+            self.Console.setText("Not ready to download! Please check devices")
+            return
+
+        if self.downloadImgURL.text() != self.defaultDownloadURL:
+            self.mAutomateQFIL.downloadFromURL = self.downloadImgURL.text()
+
+        self.startFLButton.setEnabled(False)
         self.mAutomateQFIL.finished.connect(self.onAutomateQFILFinished)
-        self.progressBar.setProperty("value", 0)
+        self.FLProgressBar.setProperty("value", 0)
         self.mAutomateQFIL.start()
 
     def onAutomateQFILFinished(self):
-        self.downloadImageButton.setEnabled(True)
+        self.mAutomateQFIL.stop()
+        self.startFLButton.setEnabled(True)
         
     def displayQFILInformation(self, message):
-        self.Console.append(message)
+        self.Console.setText(message)
 
     def displayQFILProgress(self, message):
-        self.progressBar.setProperty("value", message)
+        self.FLProgressBar.setProperty("value", message)
+
+    def displayDefaultDonwloadURLSignal(self, message):
+        self.downloadImgURL.setPlaceholderText(message)
+
+    def AutomateQFILAction(self):
+        self.mAutomateQFIL.runDownloadOnly = self.downloadImgButton.isChecked()
+        self.mAutomateQFIL.runFlashOnly = self.flashImgButton.isChecked()
     
+    def stopAutomateQFIL(self):
+        self.mAutomateQFIL.stop()
+        self.startFLButton.setEnabled(True)
 
 # SetUp command when menu is sellected ==================================================
     def setupCommandOnMenuSelect(self):
@@ -391,7 +416,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
     def startTask(self):
         self.mdeviceStatus = NORMAL
-        if (self.mdeviceStatus == NORMAL):
+        if (self.mdeviceStatus == NORMAL and self.testFileType is not None):
             self.countTestPassed = 0
             self.countTestFailed = 0
             self.progressBar.setProperty("value",  0)
@@ -406,11 +431,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.AutoKeepAliveButton.setChecked(False)
             self.AutoForwardLogButton.setChecked(False)
 
-            if self.testFileType == None:
-                self.Console.setText("Please load test case")
-                self.startTaskButton.setEnabled(True)
-                return
-            elif self.testFileType == "json":
+            if self.testFileType == "json":
                 self.mTaskManager.start()
             elif self.testFileType == "robot":
                 selectedTests = self.getSelectedTestCases()
@@ -424,15 +445,22 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.mRunRobotTestScript.testResultSignal.connect(self.updateRobotTestResult)
                 self.mRunRobotTestScript.testProgressSignal.connect(self.notifyTestScriptProgress)
                 self.mRunRobotTestScript.testCountSignal.connect(self.updateRobotTestCaseAmount)
+                self.mRunRobotTestScript.logSignal.connect(self.displayRobotLog)
                 self.mRunRobotTestScript.finishedSignal.connect(self.robotTestFinished)
                 self.mRunRobotTestScript.start()
                 self.Console.setText("Running tests ...")
             
             self.testingOnGoing = True
 
+        elif self.mdeviceStatus == NORMAL and self.testFileType is None:
+                self.show_alert("Failed to start task", "Please load test case")
+                self.startTaskButton.setEnabled(True)
+                return
+        
         else:
             self.show_alert("Failed to start", "Devices is not ready to run Test !")
             self.Console.setText("Board is not ready to run Test ! \nPlease check devices (Board, Arduino) ...")
+        
     
     def getSelectedTestCases(self):
         selectedTests = []
@@ -444,7 +472,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
             if fileItem and (not testCaseItem or testCaseItem.text().strip() == ""):
                 currentFile = fileItem.text().replace(".robot", "").strip()
-                # print(f"Found file: {currentFile}")
                 continue
 
             checkboxItem = self.TestCaseTable.cellWidget(row, 0)
@@ -453,31 +480,23 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 if checkbox and checkbox.isChecked() and currentFile and testCaseItem:
                     testCaseName = testCaseItem.text().strip()
                     if testCaseName:
-                        # print(f"Selected test case: {currentFile}.{testCaseName}")
                         selectedTests.append(f"{currentFile}.{testCaseName}")
 
-        print(f"Final selected tests: {selectedTests}")
         return selectedTests
     
     def updateRobotTestResult(self, testInfo):
-        # print(f"Updating test result: {testInfo}")
         fileName, testName, testStatus = testInfo.split(":::")
         currentFileName = None
 
         for row in range(1, self.TestCaseTable.rowCount()):
             fileItem = self.TestCaseTable.item(row, 1)
             testItem = self.TestCaseTable.item(row, 2)
-            # print(f"Row {row}: fileItem: {fileItem.text() if fileItem else None}, testItem: {testItem.text() if testItem else None}")
 
-            # Check if this row is a file name row
             if fileItem and (testItem is None or testItem.text().strip() == ""):
                 currentFileName = fileItem.text().replace(".robot", "").strip()
-                # print(f"Row {row}: Found file name '{currentFileName}'")
                 continue
 
-            # Check if this row is a test case row under the current file name
             if (currentFileName == fileName and testItem and testItem.text().strip() == testName):
-                # print(f"Row {row}: Found matching test case '{testName}'. Updating result.")
                 self.setTestResult(row, testStatus)
                 if testStatus == "PASS":
                     self.countTestPassed += 1
@@ -490,9 +509,12 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     def notifyTestScriptProgress(self, message):
         self.Console.setText(message)
 
+    def displayRobotLog(self, message):
+        self.Console.append(message)
+
     def robotTestFinished(self, message):
         self.startTaskButton.setEnabled(True)
-        self.Console.setText(message)
+        self.Console.append(message)
         self.mRunRobotTestScript.exit()
 
 
@@ -611,6 +633,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 # Handle Button clicked
     def onHandleClearButton(self):
+        self.Console.clear()
         self.startTaskButton.setEnabled(True)
         self.ConnectBoardButton.setEnabled(True)
         self.countTestResult = 0
@@ -639,26 +662,33 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         for port in ports:
             print(f"Port: {port.device}")
             print(f"Description: {port.description}")
-            if "USB-SERIAL CH340" in port.description:
+            if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
                 self.ArduinoPort = f"{port.device}"
                 print(f"Arduino connected to Port: {self.ArduinoPort}")
-
                 break
+            
         if self.ArduinoPort != NO_PORT_CONNECTED:
             if (self.PowerOnButton.text() == "Power On"):
                 self.Console.setText("Connecting to Arduino ...")
                 mArduinomgr = ArduinoManager(self.ArduinoPort)
-                mArduinomgr.sendCommandRequest(CONNECT_ARDUINO)
+                mArduinomgr.sendCommandRequest(VBAT_OFF)
+                mArduinomgr.sendCommandRequest(BUB_OFF)
+                mArduinomgr.sendCommandRequest(VBAT_ON)
                 self.PowerOnButton.setText("Power Off")
                 self.ArduinoStatus.setText("Connected")
                 self.ArduinoStatus.setStyleSheet("background-color: rgb(180, 255, 186);\n"
-                                            "border-color: rgb(115, 172, 172);")
+                                                "border-color: rgb(115, 172, 172);")
                 self.Console.setText("Connected to Arduino sucessfully!")
 
             elif (self.PowerOnButton.text() == "Power Off"):
                 mArduinomgr = ArduinoManager(self.ArduinoPort)
                 mArduinomgr.sendCommandRequest(VBAT_OFF)
                 self.PowerOnButton.setText("Power On")
+                self.ArduinoStatus.setText("Disconnected")
+                self.ArduinoStatus.setStyleSheet("background-color: rgb(253, 255, 152);\n"
+                                                "border-color: rgb(253, 255, 152);")
+                self.ArduinoPort = NO_PORT_CONNECTED
+                self.Console.setText("Disconnected to Arduino sucessfully!")
             print("SEND ME")
 
         else:
@@ -801,11 +831,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     isChecked = sender.isChecked()
                     if isChecked and self.TestCaseTable.item(row, 1) is None:
                         self.TestCaseEnabled += 1
-                        # print(f"TestCaseEnabled: {self.TestCaseEnabled}")
                     elif isChecked == False and self.TestCaseTable.item(row, 1) is None:
                         self.TestCaseEnabled -= 1
-                        # print(f"TestCaseEnabled: {self.TestCaseEnabled}")
-                    # print(f"Checkbox at row {row} changed to {'Checked' if isChecked else 'Unchecked'}")
                     break
                 
         self.updateRobotTestCaseAmount()
@@ -843,7 +870,14 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.deviceStatus.setStyleSheet("background-color: rgb(151, 226, 226);\n"
                                             "border-color: rgb(115, 172, 172);")
                 self.Console.append("Board is booting ...\n")
+
                 self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
+                if self.boardName == "JLR_VCM":
+                    self.defaultDownloadURL = f'{VCM_ARTIFACTORY_BASE_URL}/VCM_DAILY_BUILD_{datetime.now().strftime("%y%m%d")}/debug/upload_images.tar.gz'
+                    self.downloadImgURL.setText(self.defaultDownloadURL)
+                elif self.boardName == "JLR_TCUA":
+                    self.defaultDownloadURL = f'{TCUA_ARTIFACTORY_BASE_URL}/TCUA_DAILY_BUILD_{datetime.now().strftime("%y%m%d")}/debug/upload_images.tar.gz'
+                    self.downloadImgURL.setText(self.defaultDownloadURL)
             print(f"current device Status: [{self.mdeviceStatus}]")
 
     def getDeviceState(self):
@@ -854,9 +888,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         itemTcName = QTableWidgetItem(result)
         itemTcName.setTextAlignment(Qt.AlignCenter)
         self.TestCaseTable.setItem(testCaseId, 4, itemTcName)
-        if (result == "FAIL"):
+        if (result == FAILED or result == "FAIL"):
             itemTcName.setBackground(QColor(255, 111, 111))     # Red background color
-        elif (result == "PASS"):
+        elif (result == PASSED or result == "PASS"):
             itemTcName.setBackground(QColor(94, 189, 140))      # Green background color
         elif (result == "SKIP"):
             itemTcName.setBackground(QColor(255, 255, 0))       # Yellow background color
@@ -1045,13 +1079,13 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             print("DEVICE IS NOT FOUND --> CANNOT SENDING TC10 OFF")
 
 # Load TestCase Information to Table
-    def open_file_dialog(self, file_type):
+    def open_file_dialog(self):
         try:
             file_dialog = QFileDialog()
             file_dialog.setFileMode(QFileDialog.ExistingFiles)
-            if file_type == "json":
+            if self.testFileType == "json":
                 file_dialog.setNameFilter("Text files (*.json);;All files (*.*)")
-            elif file_type == "robot":
+            elif self.testFileType == "robot":
                 file_dialog.setNameFilter("Text files (*.robot);;All files (*.*)")
                 if self.boardName == "JLR_VCM":
                     self.robotFilePath = "../testsuites_vcm"
@@ -1067,14 +1101,14 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if file_dialog.exec_():
                 selected_files = file_dialog.selectedFiles()
                 if selected_files:
-                    if file_type == "json":
+                    if self.testFileType == "json":
                         selected_file = selected_files[0]
                         if selected_file:
                             print(f"Selected file: {selected_file}")
                             return selected_file
                         else:
                             self.show_alert("Error", "Invalid file path selected.")
-                    elif file_type == "robot":
+                    elif self.testFileType == "robot":
                         return selected_files   
                 else:
                     self.show_alert("Error", "No file selected.")
@@ -1083,7 +1117,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
     def loadConfigTestCase(self):
         self.testFileType = "json"
-        path = self.open_file_dialog(self.testFileType)
+        path = self.open_file_dialog()
         if (path == None):
             self.show_alert("Failed to load Configuration", "please select file config")
         else:
@@ -1095,7 +1129,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseEnabled = 0
         self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
         self.testFileType = "robot"
-        path = self.open_file_dialog(self.testFileType)
+        path = self.open_file_dialog()
         if (path == None):
             self.show_alert("Failed to load Robot", "Please select robot file")
         else:

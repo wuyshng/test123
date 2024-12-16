@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import shutil
 import tarfile
 import subprocess
@@ -12,9 +13,11 @@ class FlashManager(QObject):
 
     def __init__(self, boardName, boardDir):
         super().__init__()
+        self.isFlashing = False
+        self.flashProcess = None
         self.boardName = boardName
         self.boardDir = boardDir
-        self.portNum = -1
+        self.flashPort = -1
         self.programmerPath = ''
         self.searchPath = ''
         self.rawProgramXml = "rawprogram_nand_p4K_b256K.xml"
@@ -22,11 +25,25 @@ class FlashManager(QObject):
         self.qfilExePath = r"C:\Program Files (x86)\Qualcomm\QPST\bin\QFIL.exe"
 
     def getQualcommPort(self):
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            if "Qualcomm HS-USB QDLoader 9008" in port.description:
-                return port.device
-        return -1
+        port_number = -1
+        timeout = 3
+        interval = 0.5
+        elapsed = 0
+
+        while elapsed < timeout:
+            ports = serial.tools.list_ports.comports()
+            for port in ports:
+                if "Qualcomm HS-USB QDLoader 9008" in port.description:
+                    match = re.search(r'\d+', port.device)
+                    if match:
+                        port_number = int(match.group())
+                        return port_number
+                    
+            time.sleep(interval)
+            elapsed += interval
+
+        return port_number
+
 
     def extractImgFile(self):
         self.extractPath = self.boardDir
@@ -44,15 +61,18 @@ class FlashManager(QObject):
             imageFilePath = os.path.join(self.boardDir, "upload_images.tar.gz")
             if not os.path.isfile(imageFilePath):
                 self.flashSignal.emit(f"Error: The image file {imageFilePath} does not exist.")
-                return
+                return False
 
             with tarfile.open(imageFilePath, "r:gz") as tar:
                 tar.extractall(path=self.extractPath)
                 self.flashSignal.emit(f"Extraction successful. Files extracted to: {self.extractPath}")
+                return True
         except PermissionError:
             self.flashSignal.emit(f"Error: Permission denied for extraction path: {self.extractPath}")
+            return False
         except Exception as e:
             self.flashSignal.emit(f"Error during extraction: {e}")
+            return False
 
     def flashImg(self):
         if self.boardName == "JLR_VCM":
@@ -68,28 +88,29 @@ class FlashManager(QObject):
             f'{self.qfilExePath}\
             -DOWNLOADFLAT\
             -MODE=3\
-            -COM={self.portNum}\
+            -COM={self.flashPort}\
+            -FLATBUILDPATH="C:"\
+            -METABUILD=";"\
+            -FLATBUILDFORCEOVERRIDE=True\
+            -SEARCHPATH="{self.searchPath}"\
             -PBLDOWNLOADPROTOCOL=0\
             -PROGRAMMER=True;"{self.programmerPath}"\
-            -SEARCHPATH="{self.searchPath}"\
             -RAWPROGRAM="{self.rawProgramXml}"\
             -PATCH="{self.patchXml}"\
             -ACKRAWDATAEVERYNUMPACKETS=False;100\
             -MAXPAYLOADSIZETOTARGETINBYTES=False;49152\
-            -DEVICETYPE="nand"\
-            -PLATFORM="8x26"\
             -RESETAFTERDOWNLOAD=True\
-            -METABUILD=";"\
-            -FLATBUILDPATH="C:"\
-            -FLATBUILDFORCEOVERRIDE=True\
+            -ERASEALL=True\
             -QCNAUTOBACKUPRESTORE:True\
-            -ERASEALL=True'
+            -DEVICETYPE="nand"\
+            -PLATFORM="8x26"'
         )
         self.flashProgressSignal.emit(0)
         self.flashSignal.emit("Flashing image ...")
+        self.isFlashing = True
 
         try:
-            process = subprocess.Popen(
+            self.flashProcess = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 text=True,
@@ -97,31 +118,51 @@ class FlashManager(QObject):
                 creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
             )
 
-            for line in iter(process.stdout.readline, ""):
+            for line in iter(self.flashProcess.stdout.readline, ""):
                 line = line.strip()
                 if "percent files transferred" in line:
                     match = re.search(r"(\d+)\.\d+%", line)
                     if match:
                         percentage = int(match.group(1))
                         self.flashProgressSignal.emit(percentage)
+                
+                elif "Download Succeed" in line:
+                    self.flashSignal.emit("Flash successful!\n")
+                    return True
 
-            process.stdout.close()
-            process.wait()
+            self.flashProcess.stdout.close()
+            self.flashProcess.wait()
 
-            if process.returncode == 0:
-                self.flashSignal.emit("Flash successful!")
+            if self.flashProcess.returncode == 0:
+                print("Process exit without errors!")
+                return True
             else:
-                self.flashSignal.emit(f"Flash failed with exit code: {process.returncode}")
+                print(f"Flash failed with exit code: {self.flashProcess.returncode}")
+                return False
         except subprocess.CalledProcessError as e:
-            self.flashSignal.emit(f"Flashing failed: {e}")
+            self.flashSignal.emit(f"Flashing failed: {e}\n")
         except Exception as e:
             self.flashSignal.emit(f"An unexpected error occurred: {e}")
 
     def handleFlashImg(self):
-        self.portNum = self.getQualcommPort()
-        if self.portNum == -1:
-            self.flashSignal.emit("No valid Qualcomm port detected. Flash process aborted.")
-            return
+        try:
+            self.flashPort = self.getQualcommPort()
+            if self.flashPort == -1:
+                self.flashSignal.emit("No valid Qualcomm port detected, please try again after a few seconds ....\n")
+                return False
 
-        self.extractImgFile()
-        self.flashImg()
+            if self.extractImgFile() is not True:
+                return False
+            if self.flashImg() is not True:
+                return False
+            return True
+        
+        except Exception as e:
+            self.flashSignal.emit(f"Error during flashing: {e}")
+            return False
+
+    def stop(self):
+        if self.isFlashing == True:
+            self.flashProcess.terminate()
+            self.isFlashing = False
+            self.flashSignal.emit("Flash stopped")

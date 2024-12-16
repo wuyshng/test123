@@ -1472,50 +1472,6 @@ border-color: rgb(115, 172, 172);</string>
       <attribute name="title">
        <string>FlashLoader</string>
       </attribute>
-      <widget class="QRadioButton" name="DownloadDailyImageButtton">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>30</y>
-         <width>240</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Download daily image</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QRadioButton" name="FlashDailyImageButtton">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>70</y>
-         <width>240</width>
-         <height>25</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Flash daily image</string>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
-       </property>
-       <property name="autoExclusive">
-        <bool>false</bool>
-       </property>
-      </widget>
       <widget class="QPushButton" name="startFLButton">
        <property name="geometry">
         <rect>
@@ -1568,6 +1524,57 @@ border-color: rgb(115, 172, 172);</string>
        </property>
        <property name="text">
         <string>Stop</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="downloadImgButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>20</y>
+         <width>251</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Download daily image</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="flashImgButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>60</y>
+         <width>251</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Flash daily image</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="downloadImgURL">
+       <property name="geometry">
+        <rect>
+         <x>260</x>
+         <y>23</y>
+         <width>280</width>
+         <height>25</height>
+        </rect>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">padding: 0px 5px;
+font-size: 15px;
+background-color: rgb(255, 255, 255);
+color: rgb(51, 51, 51);</string>
+       </property>
+       <property name="placeholderText">
+        <string>Enter URL</string>
        </property>
       </widget>
      </widget>
@@ -1881,25 +1888,6 @@ border-color: rgb(115, 172, 172);</string>
      </property>
     </item>
    </widget>
-   <widget class="QPushButton" name="downloadImageButton">
-    <property name="geometry">
-     <rect>
-      <x>1020</x>
-      <y>640</y>
-      <width>111</width>
-      <height>31</height>
-     </rect>
-    </property>
-    <property name="sizePolicy">
-     <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
-      <horstretch>0</horstretch>
-      <verstretch>0</verstretch>
-     </sizepolicy>
-    </property>
-    <property name="text">
-     <string>DOWNLOAD</string>
-    </property>
-   </widget>
    <zorder>groupBox_2</zorder>
    <zorder>groupBox_6</zorder>
    <zorder>groupBox_5</zorder>
@@ -1928,7 +1916,6 @@ border-color: rgb(115, 172, 172);</string>
    <zorder>ArduinoStatus</zorder>
    <zorder>ModuleList</zorder>
    <zorder>slddList</zorder>
-   <zorder>downloadImageButton</zorder>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menubar">
@@ -1937,7 +1924,7 @@ border-color: rgb(115, 172, 172);</string>
      <x>0</x>
      <y>0</y>
      <width>1888</width>
-     <height>25</height>
+     <height>26</height>
     </rect>
    </property>
    <property name="font">
@@ -1966,7 +1953,7 @@ border-color: rgb(115, 172, 172);</string>
     <addaction name="actionLoad_CAN_configuration"/>
     <addaction name="actionHelp"/>
    </widget>
-   <widget class="QMenu" name="menuModify">
+   <widget class="QMenu" name="menuLoad">
     <property name="font">
      <font>
       <family>MS Shell Dlg 2</family>
@@ -1977,10 +1964,9 @@ border-color: rgb(115, 172, 172);</string>
      </font>
     </property>
     <property name="title">
-     <string>Edit</string>
+     <string>Load</string>
     </property>
-    <addaction name="actionModify_test_case"/>
-    <addaction name="actionLoad_test_cases"/>
+    <addaction name="actionLoad_json_test_cases"/>
     <addaction name="actionLoad_robot_test_cases"/>
    </widget>
    <widget class="QMenu" name="menuSetup">
@@ -2019,7 +2005,7 @@ border-color: rgb(115, 172, 172);</string>
     <addaction name="actionTest_failed"/>
    </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuModify"/>
+   <addaction name="menuLoad"/>
    <addaction name="menuSetup"/>
    <addaction name="menuView"/>
   </widget>
@@ -2118,9 +2104,9 @@ border-color: rgb(115, 172, 172);</string>
     </font>
    </property>
   </action>
-  <action name="actionLoad_test_cases">
+  <action name="actionLoad_json_test_cases">
    <property name="text">
-    <string>Load test cases</string>
+    <string>Load json test cases</string>
    </property>
    <property name="font">
     <font>
