@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_TestingTool(object):
     def setupUi(self, TestingTool):
         TestingTool.setObjectName("TestingTool")
-        TestingTool.resize(1888, 1070)
+        TestingTool.resize(1888, 1110)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

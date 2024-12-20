@@ -26,7 +26,7 @@ from sendCAN_NM import CANHelper
 from loadCanConfig import loadCANConfiguration
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem
 from PyQt5.QtWidgets import QTableWidgetItem, QWidget, QCheckBox, QHBoxLayout
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QCheckBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QLabel
 from PyQt5 import QtCore, QtGui, QtWidgets # type: ignore
 from PyQt5.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QPushButton, QToolBar, QAction, QFileDialog
 import pandas as pd
@@ -37,6 +37,9 @@ import time
 import json
 import re
 import os
+import psutil
+import socketserver
+from http.server import SimpleHTTPRequestHandler
 from datetime import datetime
 from commonVariable import *
 import serial.tools.list_ports
@@ -414,7 +417,36 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         else:
             print("INVALID STATE")
 
+    def kill_process_by_port(self, port):
+        pid = self.get_pid_by_port(port)
+        
+        # Ensure not to terminate the current application's process
+        if pid and pid != os.getpid():
+            try:
+                process = psutil.Process(pid)
+                process.terminate()  # Attempt to terminate the process
+                process.wait(timeout=5)  # Wait for the process to terminate
+                return f"Process with PID {pid} using port {port} has been terminated."
+            except psutil.NoSuchProcess:
+                return f"No process found with PID {pid}. It might have already exited."
+            except psutil.AccessDenied:
+                return f"Permission denied to terminate process with PID {pid}."
+            except psutil.TimeoutExpired:
+                return f"Timed out while waiting for process {pid} to terminate."
+        elif pid == os.getpid():
+            return f"Port {port} is in use by this application. No action taken."
+        else:
+            return f"No process found using port {port}."
+
+    def get_pid_by_port(self, port):
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.laddr.port == port:
+                return conn.pid
+        return None
+    
+
     def startTask(self):
+        self.kill_process_by_port(8010)
         self.mdeviceStatus = NORMAL
         if (self.mdeviceStatus == NORMAL and self.testFileType is not None):
             self.countTestPassed = 0
@@ -440,17 +472,17 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     self.startTaskButton.setEnabled(True)
                     return
                 
-                outputDir = "../output"
-                self.mRunRobotTestScript = RunRobotTestScript(selectedTests, self.robotFilePath, outputDir, self.TestCaseTable)
+                self.outputDir = "../output"
+                self.mRunRobotTestScript = RunRobotTestScript(selectedTests, self.robotFilePath, self.parentSuite, self.outputDir, self.TestCaseTable)
                 self.mRunRobotTestScript.testResultSignal.connect(self.updateRobotTestResult)
-                self.mRunRobotTestScript.testProgressSignal.connect(self.notifyTestScriptProgress)
-                self.mRunRobotTestScript.testCountSignal.connect(self.updateRobotTestCaseAmount)
                 self.mRunRobotTestScript.logSignal.connect(self.displayRobotLog)
                 self.mRunRobotTestScript.finishedSignal.connect(self.robotTestFinished)
+                self.mRunRobotTestScript.testCountSignal.connect(self.updateRobotTestCaseAmount)
                 self.mRunRobotTestScript.start()
                 self.Console.setText("Running tests ...")
             
             self.testingOnGoing = True
+            print(f"\n---testingOnGoing: {self.testingOnGoing}")
 
         elif self.mdeviceStatus == NORMAL and self.testFileType is None:
                 self.show_alert("Failed to start task", "Please load test case")
@@ -484,7 +516,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
         return selectedTests
     
-    def updateRobotTestResult(self, testInfo):
+    def updateRobotTestResult(self, testInfo, fragment):
         fileName, testName, testStatus = testInfo.split(":::")
         currentFileName = None
 
@@ -493,11 +525,11 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             testItem = self.TestCaseTable.item(row, 2)
 
             if fileItem and (testItem is None or testItem.text().strip() == ""):
-                currentFileName = fileItem.text().replace(".robot", "").strip()
+                currentFileName = fileItem.text().strip().lower()
                 continue
 
-            if (currentFileName == fileName and testItem and testItem.text().strip() == testName):
-                self.setTestResult(row, testStatus)
+            if currentFileName == fileName and testItem and testItem.text().strip() == testName:
+                self.setRobotTestResult(row, testStatus, fragment)
                 if testStatus == "PASS":
                     self.countTestPassed += 1
                     self.ledDisplayPassResult.setProperty("value", self.countTestPassed)
@@ -506,16 +538,15 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     self.ledDisplayFailedResult.setProperty("value", self.countTestFailed)
                 break
 
-    def notifyTestScriptProgress(self, message):
-        self.Console.setText(message)
-
     def displayRobotLog(self, message):
         self.Console.append(message)
 
     def robotTestFinished(self, message):
+        self.testingOnGoing = False
         self.startTaskButton.setEnabled(True)
         self.Console.append(message)
         self.mRunRobotTestScript.exit()
+        http_server = self.start_http_server(self.outputDir)
 
 
     def onReceivedEvent(self, event):
@@ -764,6 +795,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 
     def setupRobotTestCaseTable(self, totalRow = 0):
+        print("\nsetupRobotTestCaseTable")
         self.currentRow = 1
         self.TestCaseTable.clear()
         self.TestCaseTable.setColumnCount(5)
@@ -785,15 +817,15 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseTable.setStyleSheet("background-color: rgb(255, 255, 255);")
 
         # CheckBox to sellect all testCase
-        self.checkboxSellectAll = QCheckBox()
-        self.checkboxSellectAll.setChecked(False)
+        self.checkboxRobotSelectAll = QCheckBox()
+        self.checkboxRobotSelectAll.setChecked(False)
         checkbox_item = QWidget()
         checkbox_layout = QVBoxLayout()
-        checkbox_layout.addWidget(self.checkboxSellectAll)
+        checkbox_layout.addWidget(self.checkboxRobotSelectAll)
         checkbox_layout.setAlignment(Qt.AlignCenter)
         checkbox_item.setLayout(checkbox_layout)
         self.TestCaseTable.setCellWidget(0, 0, checkbox_item)
-        self.checkboxSellectAll.stateChanged.connect(self.selectAllRobotTC)
+        self.checkboxRobotSelectAll.stateChanged.connect(self.selectAllRobotTC)
 
         testCaseAll = QTableWidgetItem(f"All Test Cases")
         testCaseAll.setTextAlignment(Qt.AlignCenter)
@@ -801,14 +833,15 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseTable.setItem(0, 2, QTableWidgetItem(f"[Verify]: All test cases"))
 
     def selectAllRobotTC(self):
-        isChecked = self.checkboxSellectAll.isChecked()
+        print("\nselectAllRobotTC")
+        isChecked = self.checkboxRobotSelectAll.isChecked()
+        print(f"\nisChecked: {isChecked}")
         for row in range(1, self.TestCaseTable.rowCount()):
             checkboxWidget = self.TestCaseTable.cellWidget(row, 0)
             if checkboxWidget:
                 checkbox = checkboxWidget.findChild(QCheckBox)
                 if checkbox:
                     checkbox.setChecked(isChecked)
-
 
     def checkboxStateChanged(self, state):
         sender = self.sender()
@@ -823,7 +856,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                         self.TestCaseEnabled -= 1
         self.updateTestCaseAmount()
 
-    def TCcheckBoxStateChanged(self, state):
+    def checkBoxRobotStateChanged(self, state):
+        print("\ncheckBoxRobotStateChanged")
         sender = self.sender()
         if sender:
             for row, checkbox in self.TCcheckBoxList.items():
@@ -885,15 +919,43 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 # Set Test result
     def setTestResult(self, testCaseId, result):
-        itemTcName = QTableWidgetItem(result)
+        itemTcName = QTableWidgetItem(f"{result}")
         itemTcName.setTextAlignment(Qt.AlignCenter)
         self.TestCaseTable.setItem(testCaseId, 4, itemTcName)
-        if (result == FAILED or result == "FAIL"):
-            itemTcName.setBackground(QColor(255, 111, 111))     # Red background color
-        elif (result == PASSED or result == "PASS"):
-            itemTcName.setBackground(QColor(94, 189, 140))      # Green background color
-        elif (result == "SKIP"):
-            itemTcName.setBackground(QColor(255, 255, 0))       # Yellow background color
+        if (result == FAILED):
+            itemTcName.setBackground(QColor(255, 111, 111))  # Red background color
+        elif (result == PASSED):
+            itemTcName.setBackground(QColor(94, 189, 140))  # Green background color
+
+    def setRobotTestResult(self, testCaseId, result, fragment):
+        log_url = f"http://localhost:8010/log.html#{fragment}"
+        
+        result_label = QLabel()
+        result_label.setText(f"<a href='{log_url}' style='color: black; text-decoration: none;'>{result}</a>")
+        result_label.setOpenExternalLinks(True)
+        
+        if result == "PASS":
+            result_label.setStyleSheet("background-color: rgb(94, 189, 140);")
+        elif result == "FAIL":
+            result_label.setStyleSheet("background-color: rgb(255, 111, 111);")
+        elif result == "SKIP":
+            result_label.setStyleSheet("background-color: rgb(255, 255, 0);")
+        
+        result_label.setAlignment(QtCore.Qt.AlignCenter)
+        result_label.installEventFilter(self)
+        self.TestCaseTable.setCellWidget(testCaseId, 4, result_label)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.MouseButtonPress and isinstance(obj, QLabel):
+            if self.testingOnGoing:
+                self.show_alert("Failed to open test result link", "Please wait test finished!")
+            else:
+                url_match = re.search(r'href=[\'"]?([^\'" >]+)', obj.text())
+                if url_match:
+                    url = url_match.group(1)
+                    QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+                return True 
+        return super().eventFilter(obj, event)
 
 
     def updateExecutedTime(self, testCaseId):
@@ -953,12 +1015,14 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 # Update total test case numer
     def updateTestCaseAmount(self):
+        print("\nupdateTestCaseAmount")
         self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
         if (self.TestCaseEnabled == 0):
             self.progressBar.setProperty("value", 0)
         else: self.progressBar.setProperty("value", (self.countTestResult/self.TestCaseEnabled)*100)
 
     def updateRobotTestCaseAmount(self, countRobotTestResult=0):
+        print(f"TestCaseEnabled: {self.TestCaseEnabled}")
         self.TestResultDisplayer.setText(f"{countRobotTestResult}/{self.TestCaseEnabled}")
         if (self.TestCaseEnabled == 0):
             self.progressBar.setProperty("value", 0)
@@ -1108,12 +1172,33 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                             return selected_file
                         else:
                             self.show_alert("Error", "Invalid file path selected.")
+
                     elif self.testFileType == "robot":
-                        return selected_files   
+                        selected_file = selected_files[0]
+                        self.robotDir = os.path.dirname(selected_file)
+                        root_suite = os.path.basename(self.robotFilePath)
+
+                        try:
+                            self.parentSuite = self.getParentSuite(selected_file, root_suite)
+                        except ValueError as e:
+                            self.show_alert("Error", str(e))
+
+                        return selected_files
                 else:
                     self.show_alert("Error", "No file selected.")
         except FileNotFoundError:
             print("File not found. Please check the file path.")
+
+    def getParentSuite(self, file_path, root_suite):
+        file_path = os.path.abspath(file_path)
+
+        if root_suite not in file_path:
+            raise ValueError(f"The file is not within the specified root suite: {root_suite}")
+
+        relative_path = file_path.split(root_suite, 1)[-1].strip(os.sep)
+        directory_path = os.path.dirname(relative_path).replace(os.sep, ".")
+
+        return f"{root_suite}.{directory_path}" if directory_path else root_suite
 
     def loadConfigTestCase(self):
         self.testFileType = "json"
@@ -1125,24 +1210,24 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.setupTestCaseTable(totalTC)
             self.mTaskManager.setNumberTC(self.totalTC+1)
     
-    def loadRobotTestCase(self):
-        self.TestCaseEnabled = 0
-        self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
+    def loadRobotTestCase(self):        
         self.testFileType = "robot"
         path = self.open_file_dialog()
         if (path == None):
             self.show_alert("Failed to load Robot", "Please select robot file")
         else:
+            self.TestCaseEnabled = 0
+            self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
             self.TCcheckBoxList = {}
             self.setupRobotTestCaseTable()
             for file_path in path:
                 self.loadRobotFile(file_path)
 
-            checkBox = QCheckBox()
-            checkBox.setChecked(True)
             self.TCcheckBoxList = self.mLoadRobotTestCase.TCcheckBoxList
             for checkBox in self.TCcheckBoxList.values():
-                checkBox.stateChanged.connect(self.TCcheckBoxStateChanged)
+                checkBox.stateChanged.connect(self.checkBoxRobotStateChanged)
+
+            self.checkboxRobotSelectAll.setChecked(True)
 
     def loadJSONTestCases(self, JsonName):
         self.TestCaseData = load_data_from_json(JsonName)
@@ -1222,12 +1307,35 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         else:
             self.show_alert("Error", "No valid file path to process.")
 
-
     def processRobotFile(self, filePath):
         model = get_model(filePath)
         self.mLoadRobotTestCase = LoadRobotTestCase(self.TestCaseTable, self.currentRow, self.TCcheckBoxList)
         self.mLoadRobotTestCase.visit(model)
         self.currentRow = self.mLoadRobotTestCase.currentRow
+
+    def start_http_server(self, outputDir, port=8010):
+        if not isinstance(outputDir, (str, bytes, os.PathLike)):
+            raise ValueError(f"Invalid outputDir: {outputDir}. It must be a string or path-like object.")
+
+        os.chdir(outputDir)
+
+        class Handler(SimpleHTTPRequestHandler):
+            def log_message(self, format, *args):
+                return
+            
+        class ReusableTCPServer(socketserver.TCPServer):
+            allow_reuse_address = True
+
+        try:
+            server = ReusableTCPServer(("localhost", port), Handler)
+            threading.Thread(target=server.serve_forever, daemon=True).start()
+            print(f"HTTP server started on http://localhost:{port}")
+            return server
+        except OSError as e:
+            if e.errno == 10048:
+                raise RuntimeError(f"Port {port} is already in use.") from e
+            else:
+                raise
 
 
 if __name__ == '__main__':
