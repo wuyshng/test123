@@ -133,10 +133,23 @@ VERIFY_ADB_OUTPUT           = "VERIFY_ADB_OUTPUT"
 TEST_CASE_START = 1
 
 # Automate QFIL
-DOWNLOAD_IMAGE_ONLY         = "DOWNLOAD_IMAGE_ONLY"
-FLASH_IMAGE_ONLY            = "FLASH_IMAGE_ONLY"
-DOWNLOAD_FLASH_IMAGE        = "DOWNLOAD_FLASH_IMAGE"
+IMAGE_FILE                  = "upload_images.tar.gz"
+QFIL_EXE_PATH               = r"C:\Program Files (x86)\Qualcomm\QPST\bin\QFIL.exe"
+RAWPROGRAM_PATH             = "rawprogram_nand_p4K_b256K.xml"
+PATCH_PATH                  = "patch_p4K_b256K.xml"
+VCM_DEBUG_PATH              = r"upload_images\nad\vcm-sa515m-debug"
+TCUA_DEBUG_PATH             = r"upload_images\nad\jlr_tcua-mdm9607-debug_4k"
+VCM_PROGRAMMER_PATH         = "prog_firehose_sdx55.mbn"
+TCUA_PROGRAMMER_PATH        = "prog_nand_firehose_9x07.mbn"
 NO_IMAGE_URL                = ""
-DEFAULT_DOWNLOAD_IMAGE_URL  = ""
-VCM_ARTIFACTORY_BASE_URL    = "http://vbas.lge.com:8082/artifactory/vcm/DAILY"  
-TCUA_ARTIFACTORY_BASE_URL   = "http://vbas.lge.com:8082/artifactory/tcua/DAILY"  
+
+VCM_ARTIFACTORY_BASE_URL    = r"http://vbas.lge.com:8082/artifactory/vcm/DAILY/VCM_DAILY_BUILD_"  
+TCUA_ARTIFACTORY_BASE_URL   = r"http://vbas.lge.com:8082/artifactory/tcua/DAILY/TCUA_DAILY_BUILD_"
+
+VCM_SITE_USERNAME           = "vcm_dev"
+VCM_SITE_PASSWORD           = "JLRvcm!1234"
+TCUA_SITE_USERNAME          = None
+TCUA_SITE_PASSWORD          = None
+
+# Localhost
+LOCALHOST_PORT              = 8010

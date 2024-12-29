@@ -6,6 +6,7 @@ import tarfile
 import subprocess
 import serial.tools.list_ports
 from PyQt5.QtCore import pyqtSignal, QObject
+from commonVariable import *
 
 class FlashManager(QObject):
     flashSignal = pyqtSignal(str)
@@ -20,9 +21,9 @@ class FlashManager(QObject):
         self.flashPort = -1
         self.programmerPath = ''
         self.searchPath = ''
-        self.rawProgramXml = "rawprogram_nand_p4K_b256K.xml"
-        self.patchXml = "patch_p4K_b256K.xml"
-        self.qfilExePath = r"C:\Program Files (x86)\Qualcomm\QPST\bin\QFIL.exe"
+        self.rawProgramXml = RAWPROGRAM_PATH
+        self.patchXml = PATCH_PATH
+        self.qfilExePath = QFIL_EXE_PATH
 
     def getQualcommPort(self):
         port_number = -1
@@ -44,18 +45,18 @@ class FlashManager(QObject):
 
         return port_number
 
-
     def extractImgFile(self):
-        self.extractPath = self.boardDir
-        self.flashSignal.emit(f"{self.extractPath}")
+        extractPath = self.boardDir
+        self.flashSignal.emit(f"{extractPath}")
         try:
-            upload_images_folder = os.path.join(self.extractPath, 'upload_images')
-            if os.path.exists(upload_images_folder):
-                self.flashSignal.emit(f"Removing previous extracted folder: {upload_images_folder}")
-                shutil.rmtree(upload_images_folder)
+            uploadImagesFolder = os.path.join(extractPath, 'upload_images')
+            if os.path.exists(uploadImagesFolder):
+                self.flashSignal.emit(f"Removing previous extracted folder: {uploadImagesFolder}")
+                shutil.rmtree(uploadImagesFolder)
 
-            if not os.path.exists(self.extractPath):
-                os.makedirs(self.extractPath)
+            if not os.path.exists(extractPath):
+                os.makedirs(extractPath)
+
             self.flashSignal.emit(f"Extracting upload_images.tar.gz ...")
 
             imageFilePath = os.path.join(self.boardDir, "upload_images.tar.gz")
@@ -64,23 +65,23 @@ class FlashManager(QObject):
                 return False
 
             with tarfile.open(imageFilePath, "r:gz") as tar:
-                tar.extractall(path=self.extractPath)
-                self.flashSignal.emit(f"Extraction successful. Files extracted to: {self.extractPath}")
+                tar.extractall(path=extractPath)
+                self.flashSignal.emit(f"Extraction successful. Files extracted to: {extractPath}")
                 return True
+            
         except PermissionError:
-            self.flashSignal.emit(f"Error: Permission denied for extraction path: {self.extractPath}")
-            return False
+            self.flashSignal.emit(f"Error: Permission denied for extraction path: {extractPath}")
         except Exception as e:
             self.flashSignal.emit(f"Error during extraction: {e}")
-            return False
+        return False
 
     def flashImg(self):
         if self.boardName == "JLR_VCM":
-            self.searchPath = os.path.join(self.extractPath, r"upload_images\nad\vcm-sa515m-debug")
-            self.programmerPath = os.path.join(self.searchPath, "prog_firehose_sdx55.mbn")
+            self.searchPath = os.path.join(self.boardDir, VCM_DEBUG_PATH)
+            self.programmerPath = os.path.join(self.searchPath, VCM_PROGRAMMER_PATH)
         elif self.boardName == "JLR_TCUA":
-            self.searchPath = os.path.join(self.extractPath, r"upload_images\nad\jlr_tcua-mdm9607-debug_4k")
-            self.programmerPath = os.path.join(self.searchPath, "prog_nand_firehose_9x07.mbn")
+            self.searchPath = os.path.join(self.boardDir, TCUA_DEBUG_PATH)
+            self.programmerPath = os.path.join(self.searchPath, TCUA_PROGRAMMER_PATH)
         else:
             raise ValueError(f"No valid board name: {self.boardName}")
 
@@ -134,7 +135,7 @@ class FlashManager(QObject):
             self.flashProcess.wait()
 
             if self.flashProcess.returncode == 0:
-                print("Process exit without errors!")
+                print("Flash process completed successfully.")
                 return True
             else:
                 print(f"Flash failed with exit code: {self.flashProcess.returncode}")
@@ -148,13 +149,15 @@ class FlashManager(QObject):
         try:
             self.flashPort = self.getQualcommPort()
             if self.flashPort == -1:
-                self.flashSignal.emit("No valid Qualcomm port detected, please try again after a few seconds ....\n")
+                self.flashSignal.emit("No valid Qualcomm port detected. Please try again after a few seconds.\n")
                 return False
 
-            if self.extractImgFile() is not True:
+            if not self.extractImgFile():
                 return False
-            if self.flashImg() is not True:
+            
+            if not self.flashImg():
                 return False
+            
             return True
         
         except Exception as e:
@@ -162,7 +165,7 @@ class FlashManager(QObject):
             return False
 
     def stop(self):
-        if self.isFlashing == True:
+        if self.isFlashing:
             self.flashProcess.terminate()
             self.isFlashing = False
             self.flashSignal.emit("Flash stopped")

@@ -22,24 +22,35 @@ class AutomateQFIL(QtCore.QThread):
         self.downloadFromURL = NO_IMAGE_URL
 
     def run(self):
+        try:
+            self.initQFILManager()
+            self.handleAutomateQFIL()
+        except Exception as e:
+            self.signal.emit(f"Error during AutomateQFIL process: {e}")
+
+    def initQFILManager(self):
         self.boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName)
+        self.setupDownloadManager()
+        self.setupFlashManager()
+    
+    def setupDownloadManager(self):
         self.mDownloadManager = DownloadManager()
         self.mDownloadManager.downloadSignal.connect(self.signal)
         self.mDownloadManager.downloadProgressSignal.connect(self.progressSignal)
         self.mDownloadManager.defaultImgURLSignal.connect(self.defautDownloadURLSignal)
+    
+    def setupFlashManager(self):
         self.mFlashManager = FlashManager(self.boardName, self.boardDir)
         self.mFlashManager.flashSignal.connect(self.signal)
         self.mFlashManager.flashProgressSignal.connect(self.progressSignal)
-        try:
-            if self.runDownloadOnly and self.runFlashOnly == False:
-                self.handleDownload()
-            elif self.runFlashOnly and self.runDownloadOnly == False:
-                self.handleFlash()
-            elif self.runDownloadOnly and self.runFlashOnly:
-                self.handleDownloadAndFlash()
 
-        except Exception as e:
-            self.signal.emit(f"Error during AutomateQFIL process: {e}")
+    def handleAutomateQFIL(self):
+        if self.runDownloadOnly and not self.runFlashOnly:
+            self.handleDownload()
+        elif self.runFlashOnly and not self.runDownloadOnly:
+            self.handleFlash()
+        elif self.runDownloadOnly and self.runFlashOnly:
+            self.handleDownloadAndFlash()
 
     def handleDownload(self):
         self.isRunning = True

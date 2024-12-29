@@ -115,8 +115,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.mAutomateQFIL.signal.connect(self.displayQFILInformation)
         self.mAutomateQFIL.progressSignal.connect(self.displayQFILProgress)
         self.mAutomateQFIL.defautDownloadURLSignal.connect(self.displayDefaultDonwloadURLSignal)
+        self.mAutomateQFIL.finished.connect(self.onAutomateQFILFinished)
         self.testFileType = None
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
+        self.defaultDownloadURL = self.downloadImgURL.text()
 
 # Delete function ======================================================================
     def __del__(self):
@@ -316,21 +318,27 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
         self.mAutomateQFIL.boardName = self.boardName
 
-        self.AutomateQFILAction()
-        if self.mAutomateQFIL.runDownloadOnly == False and self.mAutomateQFIL.runFlashOnly == False:
-            self.show_alert("Flash Loader", "Please select download or flash")
-            return
-        elif self.mAutomateQFIL.runDownloadOnly == True and self.mdeviceStatus != NORMAL:
-            self.Console.setText("Not ready to download! Please check devices")
+        if not self.automateQFILAction():
             return
 
         if self.downloadImgURL.text() != self.defaultDownloadURL:
             self.mAutomateQFIL.downloadFromURL = self.downloadImgURL.text()
 
         self.startFLButton.setEnabled(False)
-        self.mAutomateQFIL.finished.connect(self.onAutomateQFILFinished)
         self.FLProgressBar.setProperty("value", 0)
         self.mAutomateQFIL.start()
+
+    def automateQFILAction(self):
+        self.mAutomateQFIL.runDownloadOnly = self.downloadImgButton.isChecked()
+        self.mAutomateQFIL.runFlashOnly = self.flashImgButton.isChecked()
+        
+        if not self.mAutomateQFIL.runDownloadOnly and not self.mAutomateQFIL.runFlashOnly:
+            self.show_alert("Flash Loader", "Please select download or flash")
+            return False
+        elif self.mAutomateQFIL.runDownloadOnly and self.mdeviceStatus != NORMAL:
+            self.Console.setText("Not ready to download! Please check devices")
+            return False
+        return True
 
     def onAutomateQFILFinished(self):
         self.mAutomateQFIL.stop()
@@ -344,11 +352,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
     def displayDefaultDonwloadURLSignal(self, message):
         self.downloadImgURL.setPlaceholderText(message)
-
-    def AutomateQFILAction(self):
-        self.mAutomateQFIL.runDownloadOnly = self.downloadImgButton.isChecked()
-        self.mAutomateQFIL.runFlashOnly = self.flashImgButton.isChecked()
-    
+            
     def stopAutomateQFIL(self):
         self.mAutomateQFIL.stop()
         self.startFLButton.setEnabled(True)
@@ -416,38 +420,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.sendCanNM()
         else:
             print("INVALID STATE")
-
-    def kill_process_by_port(self, port):
-        pid = self.get_pid_by_port(port)
-        
-        # Ensure not to terminate the current application's process
-        if pid and pid != os.getpid():
-            try:
-                process = psutil.Process(pid)
-                process.terminate()  # Attempt to terminate the process
-                process.wait(timeout=5)  # Wait for the process to terminate
-                return f"Process with PID {pid} using port {port} has been terminated."
-            except psutil.NoSuchProcess:
-                return f"No process found with PID {pid}. It might have already exited."
-            except psutil.AccessDenied:
-                return f"Permission denied to terminate process with PID {pid}."
-            except psutil.TimeoutExpired:
-                return f"Timed out while waiting for process {pid} to terminate."
-        elif pid == os.getpid():
-            return f"Port {port} is in use by this application. No action taken."
-        else:
-            return f"No process found using port {port}."
-
-    def get_pid_by_port(self, port):
-        for conn in psutil.net_connections(kind='inet'):
-            if conn.laddr.port == port:
-                return conn.pid
-        return None
-    
-
+            
     def startTask(self):
-        self.kill_process_by_port(8010)
-        self.mdeviceStatus = NORMAL
         if (self.mdeviceStatus == NORMAL and self.testFileType is not None):
             self.countTestPassed = 0
             self.countTestFailed = 0
@@ -466,6 +440,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if self.testFileType == "json":
                 self.mTaskManager.start()
             elif self.testFileType == "robot":
+                self.clearRobotTestResult()
+                self.killProcessOnPort(LOCALHOST_PORT)
                 selectedTests = self.getSelectedTestCases()
                 if not selectedTests:
                     self.Console.setText("No test cases selected!")
@@ -479,10 +455,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.mRunRobotTestScript.finishedSignal.connect(self.robotTestFinished)
                 self.mRunRobotTestScript.testCountSignal.connect(self.updateRobotTestCaseAmount)
                 self.mRunRobotTestScript.start()
-                self.Console.setText("Running tests ...")
+                # self.Console.setText("Running tests ...")
             
             self.testingOnGoing = True
-            print(f"\n---testingOnGoing: {self.testingOnGoing}")
 
         elif self.mdeviceStatus == NORMAL and self.testFileType is None:
                 self.show_alert("Failed to start task", "Please load test case")
@@ -546,8 +521,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.startTaskButton.setEnabled(True)
         self.Console.append(message)
         self.mRunRobotTestScript.exit()
-        http_server = self.start_http_server(self.outputDir)
-
+        if self.mRunRobotTestScript.result == True:
+            http_server = self.startHttpServer(self.outputDir)
 
     def onReceivedEvent(self, event):
         if (SIGNAL_SEND_CAN_NM == event):
@@ -677,7 +652,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.TestResultDisplayer.setText(f"0/{self.totalTC}")
         elif self.testFileType == "robot":
             self.TestResultDisplayer.setText(f"0/{self.TestCaseEnabled}")
-        self.clearTestResult()
+        if self.testFileType == "json":
+            self.clearTestResult()
+        elif self.testFileType == "robot":
+            self.clearRobotTestResult()
 
     def onHandlePowerReset(self):
         if self.ArduinoPort != NO_PORT_CONNECTED:
@@ -795,7 +773,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
 
     def setupRobotTestCaseTable(self, totalRow = 0):
-        print("\nsetupRobotTestCaseTable")
         self.currentRow = 1
         self.TestCaseTable.clear()
         self.TestCaseTable.setColumnCount(5)
@@ -833,9 +810,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseTable.setItem(0, 2, QTableWidgetItem(f"[Verify]: All test cases"))
 
     def selectAllRobotTC(self):
-        print("\nselectAllRobotTC")
         isChecked = self.checkboxRobotSelectAll.isChecked()
-        print(f"\nisChecked: {isChecked}")
         for row in range(1, self.TestCaseTable.rowCount()):
             checkboxWidget = self.TestCaseTable.cellWidget(row, 0)
             if checkboxWidget:
@@ -857,7 +832,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.updateTestCaseAmount()
 
     def checkBoxRobotStateChanged(self, state):
-        print("\ncheckBoxRobotStateChanged")
         sender = self.sender()
         if sender:
             for row, checkbox in self.TCcheckBoxList.items():
@@ -907,10 +881,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
                 self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
                 if self.boardName == "JLR_VCM":
-                    self.defaultDownloadURL = f'{VCM_ARTIFACTORY_BASE_URL}/VCM_DAILY_BUILD_{datetime.now().strftime("%y%m%d")}/debug/upload_images.tar.gz'
+                    self.defaultDownloadURL = f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}'
                     self.downloadImgURL.setText(self.defaultDownloadURL)
                 elif self.boardName == "JLR_TCUA":
-                    self.defaultDownloadURL = f'{TCUA_ARTIFACTORY_BASE_URL}/TCUA_DAILY_BUILD_{datetime.now().strftime("%y%m%d")}/debug/upload_images.tar.gz'
+                    self.defaultDownloadURL = f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}'
                     self.downloadImgURL.setText(self.defaultDownloadURL)
             print(f"current device Status: [{self.mdeviceStatus}]")
 
@@ -928,7 +902,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             itemTcName.setBackground(QColor(94, 189, 140))  # Green background color
 
     def setRobotTestResult(self, testCaseId, result, fragment):
-        log_url = f"http://localhost:8010/log.html#{fragment}"
+        log_url = f"http://localhost:{LOCALHOST_PORT}/log.html#{fragment}"
         
         result_label = QLabel()
         result_label.setText(f"<a href='{log_url}' style='color: black; text-decoration: none;'>{result}</a>")
@@ -946,9 +920,13 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseTable.setCellWidget(testCaseId, 4, result_label)
 
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.MouseButtonPress and isinstance(obj, QLabel):
+        if event.type() == QtCore.QEvent.MouseButtonRelease and isinstance(obj, QLabel):
             if self.testingOnGoing:
                 self.show_alert("Failed to open test result link", "Please wait test finished!")
+                return True
+            elif self.mRunRobotTestScript.result == False:
+                self.Console.setText("Cannot open the test result link because the test execution has stopped!")
+                return True
             else:
                 url_match = re.search(r'href=[\'"]?([^\'" >]+)', obj.text())
                 if url_match:
@@ -1012,17 +990,24 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         totalExecutedTimeItem = QTableWidgetItem(f"")
         totalExecutedTimeItem.setTextAlignment(Qt.AlignCenter)
         self.TestCaseTable.setItem(0, 5, totalExecutedTimeItem)
+        
+    def clearRobotTestResult(self):
+        rowCount = self.TestCaseTable.rowCount()
+        for row in range(0, rowCount):
+            widget = self.TestCaseTable.cellWidget(row, 4)
+            if isinstance(widget, QLabel):
+                widget.clear()
+                widget.setStyleSheet("background-color: rgb(255, 255, 255);")
+
 
 # Update total test case numer
     def updateTestCaseAmount(self):
-        print("\nupdateTestCaseAmount")
         self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
         if (self.TestCaseEnabled == 0):
             self.progressBar.setProperty("value", 0)
         else: self.progressBar.setProperty("value", (self.countTestResult/self.TestCaseEnabled)*100)
 
     def updateRobotTestCaseAmount(self, countRobotTestResult=0):
-        print(f"TestCaseEnabled: {self.TestCaseEnabled}")
         self.TestResultDisplayer.setText(f"{countRobotTestResult}/{self.TestCaseEnabled}")
         if (self.TestCaseEnabled == 0):
             self.progressBar.setProperty("value", 0)
@@ -1213,21 +1198,22 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     def loadRobotTestCase(self):        
         self.testFileType = "robot"
         path = self.open_file_dialog()
-        if (path == None):
+        if not path:
             self.show_alert("Failed to load Robot", "Please select robot file")
-        else:
-            self.TestCaseEnabled = 0
-            self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
-            self.TCcheckBoxList = {}
-            self.setupRobotTestCaseTable()
-            for file_path in path:
-                self.loadRobotFile(file_path)
+            return
+        
+        self.TestCaseEnabled = 0
+        self.TestResultDisplayer.setText(f"{self.countTestResult}/{self.TestCaseEnabled}")
+        self.TCcheckBoxList = {}
+        self.setupRobotTestCaseTable()
+        for file_path in path:
+            self.loadRobotFile(file_path)
 
-            self.TCcheckBoxList = self.mLoadRobotTestCase.TCcheckBoxList
-            for checkBox in self.TCcheckBoxList.values():
-                checkBox.stateChanged.connect(self.checkBoxRobotStateChanged)
+        self.TCcheckBoxList = self.mLoadRobotTestCase.TCcheckBoxList
+        for checkBox in self.TCcheckBoxList.values():
+            checkBox.stateChanged.connect(self.checkBoxRobotStateChanged)
 
-            self.checkboxRobotSelectAll.setChecked(True)
+        self.checkboxRobotSelectAll.setChecked(True)
 
     def loadJSONTestCases(self, JsonName):
         self.TestCaseData = load_data_from_json(JsonName)
@@ -1313,7 +1299,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.mLoadRobotTestCase.visit(model)
         self.currentRow = self.mLoadRobotTestCase.currentRow
 
-    def start_http_server(self, outputDir, port=8010):
+    def startHttpServer(self, outputDir, port=LOCALHOST_PORT):
         if not isinstance(outputDir, (str, bytes, os.PathLike)):
             raise ValueError(f"Invalid outputDir: {outputDir}. It must be a string or path-like object.")
 
@@ -1337,6 +1323,31 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             else:
                 raise
 
+    def killProcessOnPort(self, port):
+        pid = self.getPIDOnPort(port)
+        
+        if pid and pid != os.getpid():
+            try:
+                process = psutil.Process(pid)
+                process.terminate()
+                process.wait(timeout=5)
+                return f"Process with PID {pid} using port {port} has been terminated."
+            except psutil.NoSuchProcess:
+                return f"No process found with PID {pid}. It might have already exited."
+            except psutil.AccessDenied:
+                return f"Permission denied to terminate process with PID {pid}."
+            except psutil.TimeoutExpired:
+                return f"Timed out while waiting for process {pid} to terminate."
+        elif pid == os.getpid():
+            return f"Port {port} is in use by this application. No action taken."
+        else:
+            return f"No process found using port {port}."
+
+    def getPIDOnPort(self, port):
+        for conn in psutil.net_connections(kind='inet'):
+            if conn.laddr.port == port:
+                return conn.pid
+        return None
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
