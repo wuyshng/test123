@@ -5,6 +5,7 @@ import tarfile
 import subprocess
 from commonVariable import *
 import serial.tools.list_ports
+from sendSLDDCommand import slddCommand
 from PyQt5.QtCore import pyqtSignal, QObject
 
 class FlashManager(QObject):
@@ -23,6 +24,7 @@ class FlashManager(QObject):
         self.rawProgramXml = RAWPROGRAM_PATH
         self.patchXml = PATCH_PATH
         self.qfilExePath = QFIL_EXE_PATH
+        self.vcmDevice = UNKNOWN_ID
 
     def getQualcommPort(self):
         ports = serial.tools.list_ports.comports()
@@ -68,10 +70,13 @@ class FlashManager(QObject):
         return False
 
     def flashImage(self):
-        if self.boardName == "JLR_VCM":
+        if self.boardName == JLR_VCM:
             self.searchPath = os.path.join(self.boardDir, VCM_DEBUG_PATH)
-            self.programmerPath = os.path.join(self.searchPath, VCM_PROGRAMMER_PATH)
-        elif self.boardName == "JLR_TCUA":
+            self.slddCmd = slddCommand()
+            if not self.isVCMDeviceConnected():
+                return False
+
+        elif self.boardName == JLR_TCUA:
             self.searchPath = os.path.join(self.boardDir, TCUA_DEBUG_PATH)
             self.programmerPath = os.path.join(self.searchPath, TCUA_PROGRAMMER_PATH)
         else:
@@ -79,8 +84,8 @@ class FlashManager(QObject):
 
         cmd = (
             f'{self.qfilExePath}\
-            -DOWNLOADFLAT\
             -MODE=3\
+            -DOWNLOADFLAT\
             -COM={self.flashPort}\
             -FLATBUILDPATH="C:"\
             -METABUILD=";"\
@@ -108,6 +113,8 @@ class FlashManager(QObject):
                 text=True,
                 bufsize=1,
                 creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                check=True,
+                shell=True
             )
 
             for line in iter(self.flashProcess.stdout.readline, ""):
@@ -151,6 +158,39 @@ class FlashManager(QObject):
         
         except Exception as e:
             self.flashSignal.emit(f"Error during flashing: {e}")
+            return False
+        
+    def isVCMDeviceConnected(self):
+        if self.vcmDevice == JLR_VCM_V2X:
+           if not  self.flash_sa2150p():
+                return False
+        elif self.vcmDevice == JLR_VCM_NAD:
+            if not self.flash_sa515m():
+                return False
+        elif self.vcmDevice == UNKNOWN_ID:
+            self.flashSignal.emit("VCM device is not connected. Please connect one VCM device in the VCM tab!")
+            return False
+    
+    def flash_sa2150p(self):
+        try:
+            self.programmerPath = os.path.join(self.searchPath, VCM_SA2150P_PROGRAMMER_PATH)
+            self.slddCmd.send_adb_shell_command("reboot edl")
+            if not self.getQualcommPort():
+                return False
+
+        except Exception as ex:
+            self.flashSignal.emit(f'Failed to flash image to SA2150P. Exception: {ex}')
+            return False
+        
+    def flash_sa515m(self):
+        try:
+            self.programmerPath = os.path.join(self.searchPath, VCM_SA515M_PROGRAMMER_PATH)
+            self.slddCmd.send_adb_shell_command("reboot edl")
+            if not self.getQualcommPort():
+                return False
+
+        except Exception as ex:
+            self.flashSignal.emit(f'Failed to flash image to SA515M. Exception: {ex}')
             return False
 
     def stop(self):

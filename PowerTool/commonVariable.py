@@ -2,6 +2,12 @@
 TCUA = "TCUA"
 VCM  = "VCM"
 
+# Device
+JLR_TCUA                = "JLR_TCUA"
+JLR_VCM                 = "JLR_VCM"
+JLR_VCM_V2X             = "JLR_VCM_V2XAP"
+JLR_VCM_NAD             = "JLR_VCM_NADAP"
+
 # Config Variable for loading TC
 LIST_TC_NAME            = {}
 LIST_TEST_STEP          = {}
@@ -132,6 +138,10 @@ VERIFY_ADB_OUTPUT           = "VERIFY_ADB_OUTPUT"
 # Test case config
 TEST_CASE_START = 1
 
+# VCM chip
+VCM_SA2150P                 = "sa2150p"
+VCM_SA515M                  = "sa515m"
+
 # Automate QFIL
 IMAGE_FILE                  = "upload_images.tar.gz"
 QFIL_EXE_PATH               = r"C:\Program Files (x86)\Qualcomm\QPST\bin\QFIL.exe"
@@ -139,7 +149,8 @@ RAWPROGRAM_PATH             = "rawprogram_nand_p4K_b256K.xml"
 PATCH_PATH                  = "patch_p4K_b256K.xml"
 VCM_DEBUG_PATH              = r"upload_images\nad\vcm-sa515m-debug"
 TCUA_DEBUG_PATH             = r"upload_images\nad\jlr_tcua-mdm9607-debug_4k"
-VCM_PROGRAMMER_PATH         = "prog_firehose_sdx55.mbn"
+VCM_SA515M_PROGRAMMER_PATH  = "prog_firehose_sdx55.mbn"
+VCM_SA2150P_PROGRAMMER_PATH = "prog_firehose_nand.elf"
 TCUA_PROGRAMMER_PATH        = "prog_nand_firehose_9x07.mbn"
 NO_IMAGE_URL                = ""
 

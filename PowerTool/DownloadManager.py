@@ -20,14 +20,14 @@ class DownloadManager(QObject):
         self.downloadFromURL = NO_IMAGE_URL
 
     def getBoardInfo(self):
-        if self.boardName == "JLR_VCM":
+        if self.boardName == JLR_VCM:
             self.boardInfo = {
                 "ARTIFACTORY_BASE_URL": VCM_ARTIFACTORY_BASE_URL,
                 "SITE_USERNAME": VCM_SITE_USERNAME,
                 "SITE_PASSWORD": VCM_SITE_PASSWORD,
                 "BOARD_NAME": VCM
             }
-        elif self.boardName == "JLR_TCUA":
+        elif self.boardName == JLR_TCUA:
             self.boardInfo = {
                 "ARTIFACTORY_BASE_URL": TCUA_ARTIFACTORY_BASE_URL,
                 "SITE_USERNAME": TCUA_SITE_USERNAME,

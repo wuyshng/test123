@@ -20,6 +20,7 @@ class AutomateQFIL(QtCore.QThread):
         self.runFlashOnly = False
         self.ArduinoPort = NO_PORT_CONNECTED
         self.downloadFromURL = NO_IMAGE_URL
+        self.vcmDevice = UNKNOWN_ID
 
     def run(self):
         try:
@@ -40,6 +41,7 @@ class AutomateQFIL(QtCore.QThread):
     
     def setupFlashManager(self):
         self.mFlashManager = FlashManager(self.boardName, self.boardDir)
+        self.mFlashManager.vcmDevice = self.vcmDevice
         self.mFlashManager.flashSignal.connect(self.signal)
         self.mFlashManager.flashProgressSignal.connect(self.progressSignal)
 

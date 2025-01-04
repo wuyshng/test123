@@ -1124,9 +1124,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 file_dialog.setNameFilter("Text files (*.json);;All files (*.*)")
             elif self.testFileType == "robot":
                 file_dialog.setNameFilter("Text files (*.robot);;All files (*.*)")
-                if self.boardName == "JLR_VCM":
+                if self.boardName == JLR_VCM:
                     self.robotFilePath = "../testsuites_vcm"
-                elif self.boardName == "JLR_TCUA":
+                elif self.boardName == JLR_TCUA:
                     self.robotFilePath = "../testsuites_tcua"
                 self.robotFilePath = os.path.abspath(self.robotFilePath)
                 if os.path.isdir(self.robotFilePath):
@@ -1339,10 +1339,12 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     
     def setDefaultImageURL(self):
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
-        if self.boardName == "JLR_VCM":
+        if self.boardName == JLR_VCM:
             self.downloadImgURL.setText(f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
-        elif self.boardName == "JLR_TCUA":
+            self.mAutomateQFIL.vcmDevice = "_".join(self.SWversionDisplayer.text().split("_")[:3])
+        elif self.boardName == JLR_TCUA:
             self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
+        
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
