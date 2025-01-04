@@ -1,14 +1,13 @@
 import os
 import re
 import requests
+from commonVariable import *
 from datetime import datetime, timedelta
 from PyQt5.QtCore import pyqtSignal, QObject
-from commonVariable import *
 
 class DownloadManager(QObject):
     downloadSignal = pyqtSignal(str)
     downloadProgressSignal = pyqtSignal(int)
-    defaultImgURLSignal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -16,9 +15,9 @@ class DownloadManager(QObject):
         self.isStopped = False
         self.boardName = None
         self.boardInfo = None
-        self.imageFile = IMAGE_FILE
         self.dailyRepo = None
-        self.downloadFromURL = ""
+        self.imageFile = IMAGE_FILE
+        self.downloadFromURL = NO_IMAGE_URL
 
     def getBoardInfo(self):
         if self.boardName == "JLR_VCM":
@@ -39,29 +38,32 @@ class DownloadManager(QObject):
             raise ValueError(f"No valid board name: {self.boardName}")
         return self.boardInfo
 
-    def createImgDirectory(self):
-        baseDir = os.path.join(os.path.dirname(os.getcwd()), "images")
-        boardDir = os.path.join(baseDir, self.boardName)
+    def createImageDirectory(self):
+        boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName)
         os.makedirs(boardDir, exist_ok=True)
         return boardDir
 
-    def downloadImgFile(self, url, destDir, username=None, password=None):
+    def downloadImageFile(self, url, destDir, username=None, password=None):
         try:
+            match = re.search(r'/DAILY/([^/]+)/', url)
+            if match:
+                dailyRepo = match.group(1)
+                
             with requests.get(url, auth=(username, password) if username and password else None, stream=True) as response:
                 response.raise_for_status()
 
                 total_size = int(response.headers.get("Content-Length", 0))
                 filename = os.path.join(destDir, url.split("/")[-1])
                 self.downloadSignal.emit(
-                                        f"Image Name: {self.imageFile}\n"
-                                        f"Daily Repo: {self.dailyRepo}\n"
+                                        f"Image File: {self.imageFile}\n"
+                                        f"Daily Repository: {dailyRepo}\n"
                                         f"Download from {url}\n"
                                         f"Downloading image ..."
                 )
                 self.isDownloading = True
                 downloaded_size = 0
                 with open(filename, "wb") as file:
-                    for chunk in response.iter_content(chunk_size=8192):
+                    for chunk in response.iter_content(chunk_size=65536):
                         if self.isStopped:
                             self.downloadSignal.emit("Download stopped.\n")
                             return False
@@ -69,18 +71,18 @@ class DownloadManager(QObject):
                             file.write(chunk)
                             downloaded_size += len(chunk)
 
-                            self.progress_percentage = int((downloaded_size / total_size) * 100)
-                            self.downloadProgressSignal.emit(self.progress_percentage)
+                            progress_percentage = int((downloaded_size / total_size) * 100)
+                            self.downloadProgressSignal.emit(progress_percentage)
 
                 self.downloadSignal.emit(f"Download successful. File saved at: {destDir}\n")
                 self.isDownloading = False
                 return True
 
         except requests.RequestException as e:
-            self.downloadSignal.emit(f"Error:{e}")
+            self.downloadSignal.emit(f"Download failed: {e}")
             return False
 
-    def findValidImg(self, baseURL, dateStr, destDir, username=None, password=None):
+    def findValidImage(self, baseURL, dateStr, destDir, username=None, password=None):
         self.downloadSignal.emit("Finding the valid image ...")
         currentDate = datetime.strptime(dateStr, "%y%m%d")
 
@@ -89,7 +91,7 @@ class DownloadManager(QObject):
             self.dailyRepo = tryDate
             tryURL = f"{baseURL}{self.dailyRepo}/debug/{self.imageFile}"
 
-            if self.downloadImgFile(tryURL, destDir, username, password):
+            if self.downloadImageFile(tryURL, destDir, username, password):
                 return True
 
             currentDate -= timedelta(days=1)
@@ -97,7 +99,7 @@ class DownloadManager(QObject):
         self.downloadSignal.emit("Download stopped.\n")
         return False
 
-    def handleDownloadImg(self):
+    def handleDownloadImage(self):
         try:
             boardInfo = self.getBoardInfo()
             artifactoryBaseURL = boardInfo["ARTIFACTORY_BASE_URL"]
@@ -106,18 +108,17 @@ class DownloadManager(QObject):
 
             currentDate = datetime.now().strftime("%y%m%d")
             self.dailyRepo = currentDate
-            self.defaultImgURLSignal.emit(f'{boardInfo["ARTIFACTORY_BASE_URL"]}{self.dailyRepo}/debug/{self.imageFile}')
 
-            self.boardDir = self.createImgDirectory()
+            self.boardDir = self.createImageDirectory()
 
-            if self.downloadFromURL != "":
+            if self.downloadFromURL != NO_IMAGE_URL:
                 match = re.search(f"{boardInfo['ARTIFACTORY_BASE_URL']}(\\d+)", self.downloadFromURL)
                 if match:
                     self.dailyRepo = match.group(1)
 
-                return self.downloadImgFile(self.downloadFromURL, self.boardDir, username, password)
+                return self.downloadImageFile(self.downloadFromURL, self.boardDir, username, password)
             
-            return self.findValidImg(artifactoryBaseURL, currentDate, self.boardDir, username, password)
+            return self.findValidImage(artifactoryBaseURL, currentDate, self.boardDir, username, password)
 
         except Exception as e:
             print(f"Error during execution: {e}")

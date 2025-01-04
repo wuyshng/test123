@@ -1,12 +1,11 @@
 import os
 import re
-import time
 import shutil
 import tarfile
 import subprocess
+from commonVariable import *
 import serial.tools.list_ports
 from PyQt5.QtCore import pyqtSignal, QObject
-from commonVariable import *
 
 class FlashManager(QObject):
     flashSignal = pyqtSignal(str)
@@ -26,26 +25,19 @@ class FlashManager(QObject):
         self.qfilExePath = QFIL_EXE_PATH
 
     def getQualcommPort(self):
-        port_number = -1
-        timeout = 3
-        interval = 0.5
-        elapsed = 0
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if "Qualcomm HS-USB QDLoader 9008" in port.description:
+                match = re.search(r'\d+', port.device)
+                if match:
+                    self.flashPort = int(match.group())
+                    return True
 
-        while elapsed < timeout:
-            ports = serial.tools.list_ports.comports()
-            for port in ports:
-                if "Qualcomm HS-USB QDLoader 9008" in port.description:
-                    match = re.search(r'\d+', port.device)
-                    if match:
-                        port_number = int(match.group())
-                        return port_number
-                    
-            time.sleep(interval)
-            elapsed += interval
+        self.flashSignal.emit("Flashing failed: No valid Qualcomm port detected. Please try flashing again.\n")
+        return False
 
-        return port_number
-
-    def extractImgFile(self):
+    def extractImageFile(self):
+        self.flashProgressSignal.emit(0)
         extractPath = self.boardDir
         self.flashSignal.emit(f"{extractPath}")
         try:
@@ -75,7 +67,7 @@ class FlashManager(QObject):
             self.flashSignal.emit(f"Error during extraction: {e}")
         return False
 
-    def flashImg(self):
+    def flashImage(self):
         if self.boardName == "JLR_VCM":
             self.searchPath = os.path.join(self.boardDir, VCM_DEBUG_PATH)
             self.programmerPath = os.path.join(self.searchPath, VCM_PROGRAMMER_PATH)
@@ -106,7 +98,6 @@ class FlashManager(QObject):
             -DEVICETYPE="nand"\
             -PLATFORM="8x26"'
         )
-        self.flashProgressSignal.emit(0)
         self.flashSignal.emit("Flashing image ...")
         self.isFlashing = True
 
@@ -145,17 +136,15 @@ class FlashManager(QObject):
         except Exception as e:
             self.flashSignal.emit(f"An unexpected error occurred: {e}")
 
-    def handleFlashImg(self):
+    def handeFlashImage(self):
         try:
-            self.flashPort = self.getQualcommPort()
-            if self.flashPort == -1:
-                self.flashSignal.emit("No valid Qualcomm port detected. Please try again after a few seconds.\n")
+            if not self.getQualcommPort():
                 return False
 
-            if not self.extractImgFile():
+            if not self.extractImageFile():
                 return False
             
-            if not self.flashImg():
+            if not self.flashImage():
                 return False
             
             return True

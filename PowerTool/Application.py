@@ -114,11 +114,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.mAutomateQFIL = AutomateQFIL()
         self.mAutomateQFIL.signal.connect(self.displayQFILInformation)
         self.mAutomateQFIL.progressSignal.connect(self.displayQFILProgress)
-        self.mAutomateQFIL.defautDownloadURLSignal.connect(self.displayDefaultDonwloadURLSignal)
-        self.mAutomateQFIL.finished.connect(self.onAutomateQFILFinished)
+        self.mAutomateQFIL.finished.connect(self.automateQFILFinished)
         self.testFileType = None
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
-        self.defaultDownloadURL = self.downloadImgURL.text()
 
 # Delete function ======================================================================
     def __del__(self):
@@ -318,17 +316,15 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
         self.mAutomateQFIL.boardName = self.boardName
 
-        if not self.automateQFILAction():
+        if not self.automateQFILOption():
             return
 
-        if self.downloadImgURL.text() != self.defaultDownloadURL:
-            self.mAutomateQFIL.downloadFromURL = self.downloadImgURL.text()
-
+        self.mAutomateQFIL.downloadFromURL = self.downloadImgURL.text()
         self.startFLButton.setEnabled(False)
         self.FLProgressBar.setProperty("value", 0)
         self.mAutomateQFIL.start()
 
-    def automateQFILAction(self):
+    def automateQFILOption(self):
         self.mAutomateQFIL.runDownloadOnly = self.downloadImgButton.isChecked()
         self.mAutomateQFIL.runFlashOnly = self.flashImgButton.isChecked()
         
@@ -336,22 +332,19 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.show_alert("Flash Loader", "Please select download or flash")
             return False
         elif self.mAutomateQFIL.runDownloadOnly and self.mdeviceStatus != NORMAL:
-            self.Console.setText("Not ready to download! Please check devices")
+            self.Console.setText("Device is not ready to download. Please check devices (Board, Arduino) ...")
             return False
         return True
 
-    def onAutomateQFILFinished(self):
+    def automateQFILFinished(self):
         self.mAutomateQFIL.stop()
         self.startFLButton.setEnabled(True)
         
     def displayQFILInformation(self, message):
-        self.Console.setText(message)
+        self.Console.append(message)
 
     def displayQFILProgress(self, message):
         self.FLProgressBar.setProperty("value", message)
-
-    def displayDefaultDonwloadURLSignal(self, message):
-        self.downloadImgURL.setPlaceholderText(message)
             
     def stopAutomateQFIL(self):
         self.mAutomateQFIL.stop()
@@ -867,6 +860,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.deviceStatus.setStyleSheet("background-color: rgb(180, 255, 186);\n"
                                             "border-color: rgb(115, 172, 172);")
                 self.Console.append("Booting completed !\n")
+                self.setDefaultImageURL()
 
             elif self.mdeviceStatus == DISCONNECTED:
                 self.deviceStatus.setStyleSheet("background-color: rgb(253, 255, 152);\n"
@@ -878,14 +872,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.deviceStatus.setStyleSheet("background-color: rgb(151, 226, 226);\n"
                                             "border-color: rgb(115, 172, 172);")
                 self.Console.append("Board is booting ...\n")
+                self.setDefaultImageURL()
 
-                self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
-                if self.boardName == "JLR_VCM":
-                    self.defaultDownloadURL = f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}'
-                    self.downloadImgURL.setText(self.defaultDownloadURL)
-                elif self.boardName == "JLR_TCUA":
-                    self.defaultDownloadURL = f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}'
-                    self.downloadImgURL.setText(self.defaultDownloadURL)
             print(f"current device Status: [{self.mdeviceStatus}]")
 
     def getDeviceState(self):
@@ -1348,6 +1336,13 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if conn.laddr.port == port:
                 return conn.pid
         return None
+    
+    def setDefaultImageURL(self):
+        self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
+        if self.boardName == "JLR_VCM":
+            self.downloadImgURL.setText(f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
+        elif self.boardName == "JLR_TCUA":
+            self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

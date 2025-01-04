@@ -2,16 +2,16 @@ import os
 import serial
 from time import sleep
 from PyQt5 import QtCore
+from commonVariable import *
 from PyQt5.QtCore import pyqtSignal
+from ArduinoManager import ArduinoManager
 from DownloadManager import DownloadManager
 from FlashManager import FlashManager
-from ArduinoManager import ArduinoManager
-from commonVariable import *
 
 class AutomateQFIL(QtCore.QThread):
     signal = pyqtSignal(str)
     progressSignal = pyqtSignal(int)
-    defautDownloadURLSignal = pyqtSignal(str)
+
     def __init__(self):
         super().__init__()
         self.boardName = None
@@ -37,7 +37,6 @@ class AutomateQFIL(QtCore.QThread):
         self.mDownloadManager = DownloadManager()
         self.mDownloadManager.downloadSignal.connect(self.signal)
         self.mDownloadManager.downloadProgressSignal.connect(self.progressSignal)
-        self.mDownloadManager.defaultImgURLSignal.connect(self.defautDownloadURLSignal)
     
     def setupFlashManager(self):
         self.mFlashManager = FlashManager(self.boardName, self.boardDir)
@@ -59,7 +58,7 @@ class AutomateQFIL(QtCore.QThread):
                 self.mDownloadManager.downloadFromURL = self.downloadFromURL
 
             self.mDownloadManager.boardName = self.boardName
-            result = self.mDownloadManager.handleDownloadImg()
+            result = self.mDownloadManager.handleDownloadImage()
             self.isRunning = False
             return result
         
@@ -70,13 +69,9 @@ class AutomateQFIL(QtCore.QThread):
     
     def handleFlash(self):
         ports = serial.tools.list_ports.comports()
-
         for port in ports:
-            print(f"Port: {port.device}")
-            print(f"Description: {port.description}")
             if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
                 self.ArduinoPort = f"{port.device}"
-                print(f"Arduino connected to Port: {self.ArduinoPort}")
                 break
 
         if self.ArduinoPort != NO_PORT_CONNECTED:
@@ -84,35 +79,30 @@ class AutomateQFIL(QtCore.QThread):
             mArduinomgr.sendCommandRequest(BUB_OFF)
             mArduinomgr.sendCommandRequest(VBAT_OFF)
             mArduinomgr.sendCommandRequest(BUB_ON)
-            sleep(1)
             mArduinomgr.sendCommandRequest(VBAT_ON) 
             sleep(1)
         else:
             self.signal.emit("Cannot find arduino port")
-            return False
+            return
         
-        self.mFlashManager.getQualcommPort()
         self.isRunning = True
         try:
-            result = self.mFlashManager.handleFlashImg()
+            self.mFlashManager.handeFlashImage()
             self.isRunning = False
-            if result == True:
-                mArduinomgr.sendCommandRequest(BUB_OFF)
-                mArduinomgr.sendCommandRequest(VBAT_OFF)
-                mArduinomgr.sendCommandRequest(VBAT_ON)
-            return result
+            mArduinomgr.sendCommandRequest(VBAT_OFF)
+            mArduinomgr.sendCommandRequest(BUB_OFF)
+            sleep(1)
+            mArduinomgr.sendCommandRequest(VBAT_ON)
         except Exception as e:
             self.isRunning = False
             self.signal.emit(f"Error during flash: {e}")
-            return False
     
     def handleDownloadAndFlash(self):
         if not self.handleDownload():
+            self.signal.emit("Download failed, skipping flash.\n")
             return
-        if not self.handleFlash():
-            self.signal.emit("Flash failed.")
+        self.handleFlash()
         
-
     def stop(self):
         if self.isRunning == True:
             if self.mDownloadManager.isDownloading == True:

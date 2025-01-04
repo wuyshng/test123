@@ -31,6 +31,14 @@ class ArduinoManager():
                 self.ser.write(b"\nCONNECT_ARDUINO\n")
                 print("________________REQUEST CONNECT_ARDUINO: OK_____________\n")
 
+            elif cmdRequest == BUB_ON:
+                self.ser.write(b"\nBUB_ON\n")
+                print("________________REQUEST BUB_ON: OK_____________________\n")
+
+            elif cmdRequest == BUB_OFF:
+                self.ser.write(b"\nBUB_OFF\n")
+                print("________________REQUEST BUB_OFF: OK_____________________\n")
+
             # Read and print the response from the Arduino
             response = self.ser.readline().decode('utf-8')
             print(f"Arduino responed: {response}")
