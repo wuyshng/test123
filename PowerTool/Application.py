@@ -347,9 +347,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.mAutomateQFIL.imageVersion = DEBUG_IMAGE
         elif self.perfVersionButton.isChecked():
             self.mAutomateQFIL.imageVersion = PERF_IMAGE
-
-        if not self.mAutomateQFIL.debugImage and not self.mAutomateQFIL.perfImage:
-            self.show_alert("Flash Loader", "Please select debug or perf image version")
+        else:
+            self.Console.setText("Something was wrong!")
             return False
         return True
 

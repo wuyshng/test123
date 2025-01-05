@@ -76,7 +76,8 @@ class FlashManager(QObject):
             if not self.isVCMDeviceConnected():
                 return False
         elif self.boardName == JLR_TCUA:
-            self.flash_tcua(self.imageVersion)
+            if not self.flash_tcua(self.imageVersion):
+                return False
         else:
             raise ValueError(f"No valid board name: {self.boardName}")
 
@@ -159,11 +160,12 @@ class FlashManager(QObject):
             return False
         
     def isVCMDeviceConnected(self):
+        self.vcmDevice = JLR_VCM_V2X
         if self.vcmDevice == JLR_VCM_V2X:
-           if not  self.flash_sa2150p():
+           if not  self.flash_sa2150p(self.imageVersion):
                 return False
         elif self.vcmDevice == JLR_VCM_NAD:
-            if not self.flash_sa515m():
+            if not self.flash_sa515m(self.imageVersion):
                 return False
         elif self.vcmDevice == UNKNOWN_ID:
             self.flashSignal.emit("VCM device is not connected. Please connect one VCM device in the VCM tab!")
@@ -173,6 +175,7 @@ class FlashManager(QObject):
         try:
             self.searchPath = os.path.join(self.boardDir, VCM_SA2150P_PATH[version])
             self.programmerPath = os.path.join(self.searchPath, VCM_SA2150P_PROGRAMMER_PATH)
+            print(f"searchPath: {self.searchPath}\nprogrammerPath: {self.programmerPath}\n")
             self.slddCmd.send_adb_shell_command("reboot edl")
             if not self.getQualcommPort():
                 return False
@@ -196,6 +199,7 @@ class FlashManager(QObject):
     def flash_tcua(self, version):
             self.searchPath = os.path.join(self.boardDir, TCUA_PATH[version])
             self.programmerPath = os.path.join(self.searchPath, TCUA_PROGRAMMER_PATH)
+            print(f"searchPath: {self.searchPath}\nprogrammerPath: {self.programmerPath}\n")
             if not self.getQualcommPort():
                 return False
 
