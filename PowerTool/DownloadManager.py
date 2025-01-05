@@ -18,6 +18,7 @@ class DownloadManager(QObject):
         self.dailyRepo = None
         self.imageFile = IMAGE_FILE
         self.downloadFromURL = NO_IMAGE_URL
+        self.imageVersion = None
 
     def getBoardInfo(self):
         if self.boardName == JLR_VCM:
@@ -39,7 +40,7 @@ class DownloadManager(QObject):
         return self.boardInfo
 
     def createImageDirectory(self):
-        boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName)
+        boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName, self.imageVersion)
         os.makedirs(boardDir, exist_ok=True)
         return boardDir
 
@@ -89,7 +90,8 @@ class DownloadManager(QObject):
         while not self.isStopped:
             tryDate = currentDate.strftime("%y%m%d")
             self.dailyRepo = tryDate
-            tryURL = f"{baseURL}{self.dailyRepo}/debug/{self.imageFile}"
+            tryURL = f"{baseURL}{self.dailyRepo}/{self.imageVersion}/{self.imageFile}"
+            print(f"tryURL: {tryURL}")
 
             if self.downloadImageFile(tryURL, destDir, username, password):
                 return True
@@ -110,6 +112,7 @@ class DownloadManager(QObject):
             self.dailyRepo = currentDate
 
             self.boardDir = self.createImageDirectory()
+            print(f"image store: {self.boardDir}\n")
 
             if self.downloadFromURL != NO_IMAGE_URL:
                 match = re.search(f"{boardInfo['ARTIFACTORY_BASE_URL']}(\\d+)", self.downloadFromURL)

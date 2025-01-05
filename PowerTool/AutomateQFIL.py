@@ -21,6 +21,7 @@ class AutomateQFIL(QtCore.QThread):
         self.ArduinoPort = NO_PORT_CONNECTED
         self.downloadFromURL = NO_IMAGE_URL
         self.vcmDevice = UNKNOWN_ID
+        self.imageVersion = NO_IMAGE_VERSION
 
     def run(self):
         try:
@@ -30,18 +31,20 @@ class AutomateQFIL(QtCore.QThread):
             self.signal.emit(f"Error during AutomateQFIL process: {e}")
 
     def initQFILManager(self):
-        self.boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName)
+        self.boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName, self.imageVersion)
         self.setupDownloadManager()
         self.setupFlashManager()
     
     def setupDownloadManager(self):
         self.mDownloadManager = DownloadManager()
+        self.mDownloadManager.imageVersion = self.imageVersion
         self.mDownloadManager.downloadSignal.connect(self.signal)
         self.mDownloadManager.downloadProgressSignal.connect(self.progressSignal)
     
     def setupFlashManager(self):
         self.mFlashManager = FlashManager(self.boardName, self.boardDir)
         self.mFlashManager.vcmDevice = self.vcmDevice
+        self.mFlashManager.imageVersion = self.imageVersion
         self.mFlashManager.flashSignal.connect(self.signal)
         self.mFlashManager.flashProgressSignal.connect(self.progressSignal)
 
@@ -89,7 +92,7 @@ class AutomateQFIL(QtCore.QThread):
         
         self.isRunning = True
         try:
-            self.mFlashManager.handeFlashImage()
+            self.mFlashManager.handleFlashImage()
             self.isRunning = False
             mArduinomgr.sendCommandRequest(VBAT_OFF)
             mArduinomgr.sendCommandRequest(BUB_OFF)

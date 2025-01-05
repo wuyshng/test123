@@ -142,12 +142,32 @@ TEST_CASE_START = 1
 VCM_SA2150P                 = "sa2150p"
 VCM_SA515M                  = "sa515m"
 
+# Image version
+DEBUG_IMAGE                 = "debug"
+PERF_IMAGE                  = "perf"
+NO_IMAGE_VERSION            = ""
+
 # Automate QFIL
 IMAGE_FILE                  = "upload_images.tar.gz"
 QFIL_EXE_PATH               = r"C:\Program Files (x86)\Qualcomm\QPST\bin\QFIL.exe"
 RAWPROGRAM_PATH             = "rawprogram_nand_p4K_b256K.xml"
 PATCH_PATH                  = "patch_p4K_b256K.xml"
-VCM_DEBUG_PATH              = r"upload_images\nad\vcm-sa515m-debug"
+
+# Image path
+VCM_SA515M_PATH = {
+    "debug" :   r"upload_images\nad\vcm-sa515m-debug",
+    "perf"  :   r"upload_images\nad\vcm-sa515m-perf"
+}
+VCM_SA2150P_PATH = {
+    "debug" :   r"upload_images\nad\vcm-sa2150p-debug",
+    "perf"  :   r"upload_images\nad\vcm-sa2150p-perf"
+}
+
+TCUA_PATH = {
+    "debug" :   r"upload_images\nad\jlr_tcua-mdm9607-debug_4k",
+    "perf"  :   r"upload_images\nad\jlr_tcua-mdm9607-perf_4k",
+}
+
 TCUA_DEBUG_PATH             = r"upload_images\nad\jlr_tcua-mdm9607-debug_4k"
 VCM_SA515M_PROGRAMMER_PATH  = "prog_firehose_sdx55.mbn"
 VCM_SA2150P_PROGRAMMER_PATH = "prog_firehose_nand.elf"

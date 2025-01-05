@@ -19,12 +19,13 @@ class FlashManager(QObject):
         self.boardName = boardName
         self.boardDir = boardDir
         self.flashPort = -1
-        self.programmerPath = ''
-        self.searchPath = ''
+        self.programmerPath = ""
+        self.searchPath = ""
         self.rawProgramXml = RAWPROGRAM_PATH
         self.patchXml = PATCH_PATH
         self.qfilExePath = QFIL_EXE_PATH
         self.vcmDevice = UNKNOWN_ID
+        self.imageVersion = NO_IMAGE_VERSION
 
     def getQualcommPort(self):
         ports = serial.tools.list_ports.comports()
@@ -60,7 +61,7 @@ class FlashManager(QObject):
 
             with tarfile.open(imageFilePath, "r:gz") as tar:
                 tar.extractall(path=extractPath)
-                self.flashSignal.emit(f"Extraction successful. Files extracted to: {extractPath}")
+                self.flashSignal.emit(f"Extraction successful to: {extractPath}")
                 return True
             
         except PermissionError:
@@ -71,14 +72,11 @@ class FlashManager(QObject):
 
     def flashImage(self):
         if self.boardName == JLR_VCM:
-            self.searchPath = os.path.join(self.boardDir, VCM_DEBUG_PATH)
             self.slddCmd = slddCommand()
             if not self.isVCMDeviceConnected():
                 return False
-
         elif self.boardName == JLR_TCUA:
-            self.searchPath = os.path.join(self.boardDir, TCUA_DEBUG_PATH)
-            self.programmerPath = os.path.join(self.searchPath, TCUA_PROGRAMMER_PATH)
+            self.flash_tcua(self.imageVersion)
         else:
             raise ValueError(f"No valid board name: {self.boardName}")
 
@@ -142,12 +140,12 @@ class FlashManager(QObject):
             self.flashSignal.emit(f"Flashing failed: {e}\n")
         except Exception as e:
             self.flashSignal.emit(f"An unexpected error occurred: {e}")
+        except FileNotFoundError as e:
+            self.flashSignal.emit(f"Error: Required file not found: {e}")
 
-    def handeFlashImage(self):
+
+    def handleFlashImage(self):
         try:
-            if not self.getQualcommPort():
-                return False
-
             if not self.extractImageFile():
                 return False
             
@@ -171,8 +169,9 @@ class FlashManager(QObject):
             self.flashSignal.emit("VCM device is not connected. Please connect one VCM device in the VCM tab!")
             return False
     
-    def flash_sa2150p(self):
+    def flash_sa2150p(self, version):
         try:
+            self.searchPath = os.path.join(self.boardDir, VCM_SA2150P_PATH[version])
             self.programmerPath = os.path.join(self.searchPath, VCM_SA2150P_PROGRAMMER_PATH)
             self.slddCmd.send_adb_shell_command("reboot edl")
             if not self.getQualcommPort():
@@ -182,8 +181,9 @@ class FlashManager(QObject):
             self.flashSignal.emit(f'Failed to flash image to SA2150P. Exception: {ex}')
             return False
         
-    def flash_sa515m(self):
+    def flash_sa515m(self, version):
         try:
+            self.searchPath = os.path.join(self.boardDir, VCM_SA515M_PATH[version])
             self.programmerPath = os.path.join(self.searchPath, VCM_SA515M_PROGRAMMER_PATH)
             self.slddCmd.send_adb_shell_command("reboot edl")
             if not self.getQualcommPort():
@@ -192,6 +192,13 @@ class FlashManager(QObject):
         except Exception as ex:
             self.flashSignal.emit(f'Failed to flash image to SA515M. Exception: {ex}')
             return False
+        
+    def flash_tcua(self, version):
+            self.searchPath = os.path.join(self.boardDir, TCUA_PATH[version])
+            self.programmerPath = os.path.join(self.searchPath, TCUA_PROGRAMMER_PATH)
+            if not self.getQualcommPort():
+                return False
+
 
     def stop(self):
         if self.isFlashing:

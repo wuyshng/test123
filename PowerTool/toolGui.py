@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_TestingTool(object):
     def setupUi(self, TestingTool):
         TestingTool.setObjectName("TestingTool")
-        TestingTool.resize(1888, 1110)
+        TestingTool.resize(1888, 1070)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -800,10 +800,23 @@ class Ui_TestingTool(object):
         self.downloadImgURL = QtWidgets.QLineEdit(self.FlashLoader)
         self.downloadImgURL.setGeometry(QtCore.QRect(260, 23, 280, 25))
         self.downloadImgURL.setStyleSheet("padding: 0px 5px;\n"
-                                        "font-size: 15px;\n"
-                                        "background-color: rgb(255, 255, 255);\n"
-                                        "color: rgb(51, 51, 51);")
+"font-size: 15px;\n"
+"background-color: rgb(255, 255, 255);\n"
+"color: rgb(51, 51, 51);")
         self.downloadImgURL.setObjectName("downloadImgURL")
+        self.widget = QtWidgets.QWidget(self.FlashLoader)
+        self.widget.setGeometry(QtCore.QRect(260, 60, 165, 40))
+        self.widget.setObjectName("widget")
+        self.ImageVersionBox = QtWidgets.QHBoxLayout(self.widget)
+        self.ImageVersionBox.setContentsMargins(0, 0, 0, 11)
+        self.ImageVersionBox.setSpacing(7)
+        self.ImageVersionBox.setObjectName("ImageVersionBox")
+        self.debugVersionButton = QtWidgets.QRadioButton(self.widget)
+        self.debugVersionButton.setObjectName("debugVersionButton")
+        self.ImageVersionBox.addWidget(self.debugVersionButton)
+        self.perfVersionButton = QtWidgets.QRadioButton(self.widget)
+        self.perfVersionButton.setObjectName("perfVersionButton")
+        self.ImageVersionBox.addWidget(self.perfVersionButton)
         self.ProjectTab.addTab(self.FlashLoader, "")
         self.groupBox_3 = QtWidgets.QGroupBox(self.centralwidget)
         self.groupBox_3.setGeometry(QtCore.QRect(630, 210, 601, 101))
@@ -991,7 +1004,7 @@ class Ui_TestingTool(object):
         self.statusbar.setObjectName("statusbar")
         TestingTool.setStatusBar(self.statusbar)
         self.menubar = QtWidgets.QMenuBar(TestingTool)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1888, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1888, 30))
         font = QtGui.QFont()
         font.setFamily("MS Shell Dlg 2")
         font.setPointSize(12)
@@ -1189,6 +1202,8 @@ class Ui_TestingTool(object):
         self.downloadImgButton.setText(_translate("TestingTool", "Download daily image"))
         self.flashImgButton.setText(_translate("TestingTool", "Flash daily image"))
         self.downloadImgURL.setPlaceholderText(_translate("TestingTool", "Enter URL"))
+        self.debugVersionButton.setText(_translate("TestingTool", "Debug"))
+        self.perfVersionButton.setText(_translate("TestingTool", "Perf"))
         self.ProjectTab.setTabText(self.ProjectTab.indexOf(self.FlashLoader), _translate("TestingTool", "FlashLoader"))
         self.groupBox_3.setTitle(_translate("TestingTool", "Test result"))
         self.testResultLablel.setText(_translate("TestingTool", "Total"))

@@ -117,6 +117,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.mAutomateQFIL.finished.connect(self.automateQFILFinished)
         self.testFileType = None
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
+        self.debugVersionButton.setChecked(True)
+        self.debugVersionButton.clicked.connect(self.onClickImageVersion)
+        self.perfVersionButton.clicked.connect(self.onClickImageVersion)
 
 # Delete function ======================================================================
     def __del__(self):
@@ -318,6 +321,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
         if not self.automateQFILOption():
             return
+        
+        if not self.selectImageVersion():
+            return
 
         self.mAutomateQFIL.downloadFromURL = self.downloadImgURL.text()
         self.startFLButton.setEnabled(False)
@@ -333,6 +339,17 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             return False
         elif self.mAutomateQFIL.runDownloadOnly and self.mdeviceStatus != NORMAL:
             self.Console.setText("Device is not ready to download. Please check devices (Board, Arduino) ...")
+            return False
+        return True
+    
+    def selectImageVersion(self):
+        if self.debugVersionButton.isChecked():
+            self.mAutomateQFIL.imageVersion = DEBUG_IMAGE
+        elif self.perfVersionButton.isChecked():
+            self.mAutomateQFIL.imageVersion = PERF_IMAGE
+
+        if not self.mAutomateQFIL.debugImage and not self.mAutomateQFIL.perfImage:
+            self.show_alert("Flash Loader", "Please select debug or perf image version")
             return False
         return True
 
@@ -1337,13 +1354,19 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 return conn.pid
         return None
     
-    def setDefaultImageURL(self):
+    def setDefaultImageURL(self, version=DEBUG_IMAGE):
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
         if self.boardName == JLR_VCM:
-            self.downloadImgURL.setText(f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
+            self.downloadImgURL.setText(f'{VCM_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/{version}/{IMAGE_FILE}')
             self.mAutomateQFIL.vcmDevice = "_".join(self.SWversionDisplayer.text().split("_")[:3])
         elif self.boardName == JLR_TCUA:
-            self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/debug/{IMAGE_FILE}')
+            self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/{version}/{IMAGE_FILE}')
+
+    def onClickImageVersion(self):
+        if self.debugVersionButton.isChecked():
+            self.setDefaultImageURL(DEBUG_IMAGE)
+        elif self.perfVersionButton.isChecked():
+            self.setDefaultImageURL(PERF_IMAGE)
         
 
 if __name__ == '__main__':
