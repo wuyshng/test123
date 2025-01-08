@@ -1,5 +1,6 @@
 import os
 import threading
+import shutil
 from PyQt5 import QtCore
 from PyQt5.QtCore import pyqtSignal
 from robot import run
@@ -7,7 +8,7 @@ from robot.api.interfaces import ListenerV3
 
 
 class RobotListener(ListenerV3):
-    def __init__(self, stop_event, logSignal, signal):
+    def __init__(self, stop_event, logSignal, signal, parentSuiteName):
         self.stop_event = stop_event
         self.logSignal = logSignal
         self.signal = signal
@@ -18,9 +19,11 @@ class RobotListener(ListenerV3):
         self.testResult = None
         self.results = []
         self.countTestResult = 0
+        self.countRobotFile = 0
+        self.parentSuiteName = parentSuiteName
 
     def start_suite(self, suite, result):
-        self.suiteName = suite.name.replace(" ", "_").lower() + ".robot"
+        self.suiteName = suite.name.replace(" ", "_").lower()
         self.testCount = 0
         self.testPassed = 0
         self.testFailed = 0
@@ -29,6 +32,7 @@ class RobotListener(ListenerV3):
         if suite.tests:
             self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>{'=' * self.lineWidth}</pre>")
             if suite.doc:
+                self.countRobotFile += 1
                 first_line = suite.doc.strip().splitlines()[0]
                 self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>{suite.name} :: {first_line}</pre>")
             else:
@@ -98,13 +102,23 @@ class RobotListener(ListenerV3):
         self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>{'=' * self.lineWidth}</pre>")
 
     def output_file(self, path):
-        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Output:  {path}</pre>")
+        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Output:  {os.path.normpath(path)}</pre>")
 
     def log_file(self, path):
-        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Log:     {path}</pre>")
+        print(f"countRobotFile: {self.countRobotFile}")
+        if self.countRobotFile == 1:
+            newLog = f"{self.suiteName}_log.html"
+            newPath = path.with_name(newLog)
+            shutil.copy(path, newPath)
+        elif self.countRobotFile > 1:
+            newLog = f"{self.parentSuiteName}_log.html"
+            newPath = path.with_name(newLog)
+            shutil.copy(path, newPath)
+
+        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Log:     {os.path.normpath(path)}</pre>")
 
     def report_file(self, path):
-        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Report:  {path}</pre>")
+        self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Report:  {os.path.normpath(path)}</pre>")
 
 class RunRobotTestScript(QtCore.QThread):
     signal = pyqtSignal(list, int, str)
@@ -128,9 +142,11 @@ class RunRobotTestScript(QtCore.QThread):
     def run(self):
         self.addParentSuiteToSelectedTest(self.parentSuite)
         self.testSuites = os.path.basename(self.robotFilePath)
+        print(f"testSuites: {self.testSuites}")
         try:
+            print(f"self.robotFilePath: {self.robotFilePath}\nself.testSuites: {self.testSuites}\nself.selectedTests: {self.selectedTests}\n")
             run(self.robotFilePath, suite=self.testSuites, test=self.selectedTests, outputdir=self.outputDir,
-                listener=RobotListener(self.stop_event, self.logSignal, self.signal))
+                listener=RobotListener(self.stop_event, self.logSignal, self.signal, self.testSuites))
 
             if not self.stop_event.is_set():
                 self.finishedSignal.emit("All tests completed.")
@@ -146,6 +162,7 @@ class RunRobotTestScript(QtCore.QThread):
 
         for fileName, testName, testStatus in message:
             testInfo = f"{fileName}:::{testName}:::{testStatus}"
+            print(f"\ntestInfo: {testInfo}")
             self.testCountSignal.emit(self.countTestResult)
             self.testResultSignal.emit(testInfo, fragment)
 

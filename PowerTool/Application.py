@@ -431,6 +431,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             print("INVALID STATE")
             
     def startTask(self):
+        self.mdeviceStatus = NORMAL
         if (self.mdeviceStatus == NORMAL and self.testFileType is not None):
             self.countTestPassed = 0
             self.countTestFailed = 0
@@ -457,7 +458,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     self.startTaskButton.setEnabled(True)
                     return
                 
-                self.outputDir = "../output"
+                # self.outputDir = f"../output/{self.boardName}"
+                self.outputDir = f"../output"
+                os.makedirs(self.outputDir, exist_ok=True)
                 self.mRunRobotTestScript = RunRobotTestScript(selectedTests, self.robotFilePath, self.parentSuite, self.outputDir, self.TestCaseTable)
                 self.mRunRobotTestScript.testResultSignal.connect(self.updateRobotTestResult)
                 self.mRunRobotTestScript.logSignal.connect(self.displayRobotLog)
@@ -497,7 +500,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     testCaseName = testCaseItem.text().strip()
                     if testCaseName:
                         selectedTests.append(f"{currentFile}.{testCaseName}")
-
+        print(f"\nselectedTests: {selectedTests}")
         return selectedTests
     
     def updateRobotTestResult(self, testInfo, fragment):
@@ -509,7 +512,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             testItem = self.TestCaseTable.item(row, 2)
 
             if fileItem and (testItem is None or testItem.text().strip() == ""):
-                currentFileName = fileItem.text().strip().lower()
+                currentFileName = fileItem.text().replace(".robot", "").strip().lower()
                 continue
 
             if currentFileName == fileName and testItem and testItem.text().strip() == testName:
@@ -1139,6 +1142,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if self.testFileType == "json":
                 file_dialog.setNameFilter("Text files (*.json);;All files (*.*)")
             elif self.testFileType == "robot":
+                retval = os.getcwd()
+                print(f"currentDir: {retval}")
                 file_dialog.setNameFilter("Text files (*.robot);;All files (*.*)")
                 if self.boardName == JLR_VCM:
                     self.robotFilePath = "../testsuites_vcm"
@@ -1166,6 +1171,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                         selected_file = selected_files[0]
                         self.robotDir = os.path.dirname(selected_file)
                         root_suite = os.path.basename(self.robotFilePath)
+                        print(f"root_suite: {root_suite}")
 
                         try:
                             self.parentSuite = self.getParentSuite(selected_file, root_suite)
@@ -1201,6 +1207,12 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     
     def loadRobotTestCase(self):        
         self.testFileType = "robot"
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+        if self.boardName == JLR_VCM:
+            self.robotFilePath = os.path.join(base_dir, "testsuites_vcm")
+        elif self.boardName == JLR_TCUA:
+            self.robotFilePath = os.path.join(base_dir, "testsuites_tcua")
         path = self.open_file_dialog()
         if not path:
             self.show_alert("Failed to load Robot", "Please select robot file")
@@ -1304,6 +1316,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.currentRow = self.mLoadRobotTestCase.currentRow
 
     def startHttpServer(self, outputDir, port=LOCALHOST_PORT):
+        outputDir = os.path.abspath(outputDir)
+        if not os.path.exists(outputDir):
+            raise ValueError(f"Directory does not exist: {outputDir}")
+        
         if not isinstance(outputDir, (str, bytes, os.PathLike)):
             raise ValueError(f"Invalid outputDir: {outputDir}. It must be a string or path-like object.")
 
