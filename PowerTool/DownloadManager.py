@@ -56,10 +56,10 @@ class DownloadManager(QObject):
                 total_size = int(response.headers.get("Content-Length", 0))
                 filename = os.path.join(destDir, url.split("/")[-1])
                 self.downloadSignal.emit(
-                                        f"\nImage File: {self.imageFile}\n"
+                                        f"Image File: {self.imageFile}\n"
                                         f"Daily Repository: {dailyRepo}\n"
                                         f"Download from {url}\n"
-                                        f"Downloading image ..."
+                                        f"Downloading image ...\n"
                 )
                 self.isDownloading = True
                 downloaded_size = 0

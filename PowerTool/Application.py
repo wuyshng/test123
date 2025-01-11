@@ -117,6 +117,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.mAutomateQFIL.finished.connect(self.automateQFILFinished)
         self.testFileType = None
         self.boardName = "_".join(self.SWversionDisplayer.text().split("_")[:2])
+        self.AutoKeepAliveButton.setChecked(True)
         self.debugVersionButton.setChecked(True)
         self.debugVersionButton.clicked.connect(self.onClickImageVersion)
         self.perfVersionButton.clicked.connect(self.onClickImageVersion)
@@ -431,7 +432,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             print("INVALID STATE")
             
     def startTask(self):
-        self.mdeviceStatus = NORMAL
         if (self.mdeviceStatus == NORMAL and self.testFileType is not None):
             self.countTestPassed = 0
             self.countTestFailed = 0
@@ -458,9 +458,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                     self.startTaskButton.setEnabled(True)
                     return
                 
-                # self.outputDir = f"../output/{self.boardName}"
-                self.outputDir = f"../output"
-                os.makedirs(self.outputDir, exist_ok=True)
+                self.outputDir = "../output"
                 self.mRunRobotTestScript = RunRobotTestScript(selectedTests, self.robotFilePath, self.parentSuite, self.outputDir, self.TestCaseTable)
                 self.mRunRobotTestScript.testResultSignal.connect(self.updateRobotTestResult)
                 self.mRunRobotTestScript.logSignal.connect(self.displayRobotLog)
@@ -483,25 +481,30 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     
     def getSelectedTestCases(self):
         selectedTests = []
-        currentFile = None
+        currentFileName = None
 
         for row in range(1, self.TestCaseTable.rowCount()):
             fileItem = self.TestCaseTable.item(row, 1)
             testCaseItem = self.TestCaseTable.item(row, 2)
 
             if fileItem and (not testCaseItem or testCaseItem.text().strip() == ""):
-                currentFile = fileItem.text().replace(".robot", "").strip()
+                currentFileName = self.getNameFromSource(fileItem.text().replace(".robot", "").strip().lower())
                 continue
 
             checkboxItem = self.TestCaseTable.cellWidget(row, 0)
             if checkboxItem:
                 checkbox = checkboxItem.findChild(QCheckBox)
-                if checkbox and checkbox.isChecked() and currentFile and testCaseItem:
+                if checkbox and checkbox.isChecked() and currentFileName and testCaseItem:
                     testCaseName = testCaseItem.text().strip()
                     if testCaseName:
-                        selectedTests.append(f"{currentFile}.{testCaseName}")
-        print(f"\nselectedTests: {selectedTests}")
+                        selectedTests.append(f"{currentFileName}.{testCaseName}")
+
         return selectedTests
+    
+    def getNameFromSource(self, currentFileName):
+        parts = currentFileName.split('__', 1)
+        newFileName = parts[-1] if len(parts) > 1 else currentFileName
+        return newFileName
     
     def updateRobotTestResult(self, testInfo, fragment):
         fileName, testName, testStatus = testInfo.split(":::")
@@ -512,7 +515,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             testItem = self.TestCaseTable.item(row, 2)
 
             if fileItem and (testItem is None or testItem.text().strip() == ""):
-                currentFileName = fileItem.text().replace(".robot", "").strip().lower()
+                currentFileName = self.getNameFromSource(fileItem.text().replace(".robot", "").strip().lower())
                 continue
 
             if currentFileName == fileName and testItem and testItem.text().strip() == testName:
@@ -531,6 +534,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     def robotTestFinished(self, message):
         self.testingOnGoing = False
         self.startTaskButton.setEnabled(True)
+        self.ActiveCanBusButton.setEnabled(True)
         self.Console.append(message)
         self.mRunRobotTestScript.exit()
         if self.mRunRobotTestScript.result == True:
@@ -880,6 +884,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                                             "border-color: rgb(115, 172, 172);")
                 self.Console.append("Booting completed !\n")
                 self.setDefaultImageURL()
+                if self.boardName == JLR_VCM:
+                    self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata VCMLoggingOnOff 1")
+                if self.boardName == JLR_TCUA:
+                    self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata TCUALoggingOnOff 1")
 
             elif self.mdeviceStatus == DISCONNECTED:
                 self.deviceStatus.setStyleSheet("background-color: rgb(253, 255, 152);\n"
@@ -1142,19 +1150,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if self.testFileType == "json":
                 file_dialog.setNameFilter("Text files (*.json);;All files (*.*)")
             elif self.testFileType == "robot":
-                retval = os.getcwd()
-                print(f"currentDir: {retval}")
                 file_dialog.setNameFilter("Text files (*.robot);;All files (*.*)")
-                if self.boardName == JLR_VCM:
-                    self.robotFilePath = "../testsuites_vcm"
-                elif self.boardName == JLR_TCUA:
-                    self.robotFilePath = "../testsuites_tcua"
-                self.robotFilePath = os.path.abspath(self.robotFilePath)
-                if os.path.isdir(self.robotFilePath):
-                    file_dialog.setDirectory(self.robotFilePath)
-                else:
-                    self.show_alert("Directory Not Found", f"Directory does not exist: {self.robotFilePath}")
-                    return None
 
             if file_dialog.exec_():
                 selected_files = file_dialog.selectedFiles()
@@ -1169,31 +1165,18 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
                     elif self.testFileType == "robot":
                         selected_file = selected_files[0]
-                        self.robotDir = os.path.dirname(selected_file)
-                        root_suite = os.path.basename(self.robotFilePath)
-                        print(f"root_suite: {root_suite}")
+                        self.robotFilePath = os.path.dirname(selected_file)
+                        self.parentSuite = os.path.basename(self.robotFilePath)
 
-                        try:
-                            self.parentSuite = self.getParentSuite(selected_file, root_suite)
-                        except ValueError as e:
-                            self.show_alert("Error", str(e))
+                        if self.parentSuite == '':
+                            self.show_alert("Can not open robot file", "Please move file to a directory.")
+                            return
 
                         return selected_files
                 else:
                     self.show_alert("Error", "No file selected.")
         except FileNotFoundError:
             print("File not found. Please check the file path.")
-
-    def getParentSuite(self, file_path, root_suite):
-        file_path = os.path.abspath(file_path)
-
-        if root_suite not in file_path:
-            raise ValueError(f"The file is not within the specified root suite: {root_suite}")
-
-        relative_path = file_path.split(root_suite, 1)[-1].strip(os.sep)
-        directory_path = os.path.dirname(relative_path).replace(os.sep, ".")
-
-        return f"{root_suite}.{directory_path}" if directory_path else root_suite
 
     def loadConfigTestCase(self):
         self.testFileType = "json"
@@ -1205,14 +1188,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.setupTestCaseTable(totalTC)
             self.mTaskManager.setNumberTC(self.totalTC+1)
     
-    def loadRobotTestCase(self):        
+    def loadRobotTestCase(self):
         self.testFileType = "robot"
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-        if self.boardName == JLR_VCM:
-            self.robotFilePath = os.path.join(base_dir, "testsuites_vcm")
-        elif self.boardName == JLR_TCUA:
-            self.robotFilePath = os.path.join(base_dir, "testsuites_tcua")
+        self.progressBar.setProperty("value", 0)
         path = self.open_file_dialog()
         if not path:
             self.show_alert("Failed to load Robot", "Please select robot file")
@@ -1316,10 +1294,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.currentRow = self.mLoadRobotTestCase.currentRow
 
     def startHttpServer(self, outputDir, port=LOCALHOST_PORT):
-        outputDir = os.path.abspath(outputDir)
-        if not os.path.exists(outputDir):
-            raise ValueError(f"Directory does not exist: {outputDir}")
-        
         if not isinstance(outputDir, (str, bytes, os.PathLike)):
             raise ValueError(f"Invalid outputDir: {outputDir}. It must be a string or path-like object.")
 

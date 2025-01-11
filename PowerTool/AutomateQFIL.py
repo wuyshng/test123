@@ -4,7 +4,6 @@ from time import sleep
 from PyQt5 import QtCore
 from commonVariable import *
 from PyQt5.QtCore import pyqtSignal
-from ArduinoManager import ArduinoManager
 from DownloadManager import DownloadManager
 from FlashManager import FlashManager
 
@@ -73,31 +72,10 @@ class AutomateQFIL(QtCore.QThread):
             return False
     
     def handleFlash(self):
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
-                self.ArduinoPort = f"{port.device}"
-                break
-
-        if self.ArduinoPort != NO_PORT_CONNECTED:
-            mArduinomgr = ArduinoManager(self.ArduinoPort)
-            mArduinomgr.sendCommandRequest(BUB_OFF)
-            mArduinomgr.sendCommandRequest(VBAT_OFF)
-            mArduinomgr.sendCommandRequest(BUB_ON)
-            mArduinomgr.sendCommandRequest(VBAT_ON) 
-            sleep(1)
-        else:
-            self.signal.emit("Cannot find arduino port")
-            return
-        
         self.isRunning = True
         try:
             self.mFlashManager.handleFlashImage()
             self.isRunning = False
-            mArduinomgr.sendCommandRequest(VBAT_OFF)
-            mArduinomgr.sendCommandRequest(BUB_OFF)
-            sleep(1)
-            mArduinomgr.sendCommandRequest(VBAT_ON)
         except Exception as e:
             self.isRunning = False
             self.signal.emit(f"Error during flash: {e}")

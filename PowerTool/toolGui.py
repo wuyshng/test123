@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_TestingTool(object):
     def setupUi(self, TestingTool):
         TestingTool.setObjectName("TestingTool")
-        TestingTool.resize(1888, 1070)
+        TestingTool.resize(1888, 1110)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -1004,7 +1004,7 @@ class Ui_TestingTool(object):
         self.statusbar.setObjectName("statusbar")
         TestingTool.setStatusBar(self.statusbar)
         self.menubar = QtWidgets.QMenuBar(TestingTool)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1888, 30))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1888, 26))
         font = QtGui.QFont()
         font.setFamily("MS Shell Dlg 2")
         font.setPointSize(12)
