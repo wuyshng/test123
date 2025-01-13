@@ -10,6 +10,7 @@ from FlashManager import FlashManager
 class AutomateQFIL(QtCore.QThread):
     signal = pyqtSignal(str)
     progressSignal = pyqtSignal(int)
+    resultSignal = pyqtSignal(bool)
 
     def __init__(self):
         super().__init__()
@@ -26,8 +27,10 @@ class AutomateQFIL(QtCore.QThread):
         try:
             self.initQFILManager()
             self.handleAutomateQFIL()
+            resultSignal = QtCore.pyqtSignal(True)
         except Exception as e:
             self.signal.emit(f"Error during AutomateQFIL process: {e}")
+            self.resultSignal.emit(False)
 
     def initQFILManager(self):
         self.boardDir = os.path.join(os.path.dirname(os.getcwd()), "images", self.boardName, self.imageVersion)
@@ -76,15 +79,18 @@ class AutomateQFIL(QtCore.QThread):
         try:
             self.mFlashManager.handleFlashImage()
             self.isRunning = False
+            return True
         except Exception as e:
             self.isRunning = False
             self.signal.emit(f"Error during flash: {e}")
+            return False
     
     def handleDownloadAndFlash(self):
         if not self.handleDownload():
             self.signal.emit("Download failed, skipping flash.\n")
-            return
-        self.handleFlash()
+            return False
+        if not self.handleFlash():
+            return False
         
     def stop(self):
         if self.isRunning == True:

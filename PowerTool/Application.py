@@ -537,8 +537,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.ActiveCanBusButton.setEnabled(True)
         self.Console.append(message)
         self.mRunRobotTestScript.exit()
-        if self.mRunRobotTestScript.result == True:
-            http_server = self.startHttpServer(self.outputDir)
+        # if self.mRunRobotTestScript.result == True:
+        #     http_server = self.startHttpServer(self.outputDir)
 
     def onReceivedEvent(self, event):
         if (SIGNAL_SEND_CAN_NM == event):
@@ -943,6 +943,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.Console.setText("Cannot open the test result link because the test execution has stopped!")
                 return True
             else:
+                self.startHttpServer(self.outputDir)
                 url_match = re.search(r'href=[\'"]?([^\'" >]+)', obj.text())
                 if url_match:
                     url = url_match.group(1)
@@ -1172,6 +1173,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                             self.show_alert("Can not open robot file", "Please move file to a directory.")
                             return
 
+                        print(f"selected_files: {selected_files}")
                         return selected_files
                 else:
                     self.show_alert("Error", "No file selected.")
@@ -1188,10 +1190,17 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.setupTestCaseTable(totalTC)
             self.mTaskManager.setNumberTC(self.totalTC+1)
     
-    def loadRobotTestCase(self):
+    def loadRobotTestCase(self, filePath=False):
         self.testFileType = "robot"
         self.progressBar.setProperty("value", 0)
-        path = self.open_file_dialog()
+
+        if filePath is False:
+            path = self.open_file_dialog()
+            print(f"path: {path}")
+        else:
+            path = filePath
+            print(f"path2: {path}")
+
         if not path:
             self.show_alert("Failed to load Robot", "Please select robot file")
             return
