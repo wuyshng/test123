@@ -31,10 +31,7 @@ class FlashManager(QObject):
         self.ArduinoPort = NO_PORT_CONNECTED
 
     def getQualcommPort(self):
-        if self.vcmDevice == JLR_VCM_NAD:
-            sleep(15)
-        else:
-            sleep(5)
+        sleep(20)
         ports = serial.tools.list_ports.comports()
         for port in ports:
             if "Qualcomm HS-USB QDLoader 9008" in port.description:
@@ -44,7 +41,6 @@ class FlashManager(QObject):
                     return True
 
         self.flashSignal.emit("Flashing failed: No valid Qualcomm port detected. Please try flashing again.\n")
-        self.turnOnBootMode()
         return False
 
     def extractImageFile(self):
@@ -153,6 +149,8 @@ class FlashManager(QObject):
         try:
             if not self.extractImageFile():
                 return False
+            
+            self.getArduinoPort()
         
             if self.boardName == JLR_TCUA:
                 if not self.turnOnBootMode():
@@ -161,8 +159,7 @@ class FlashManager(QObject):
             if not self.flashImage():
                 return False
             
-            if self.boardName == JLR_TCUA:
-                self.turnOnNormalMode()
+            self.turnOnNormalMode()
 
             return True
         
@@ -200,7 +197,7 @@ class FlashManager(QObject):
         try:
             self.searchPath = os.path.join(self.boardDir, VCM_SA515M_PATH[version])
             self.programmerPath = os.path.join(self.searchPath, VCM_SA515M_PROGRAMMER_PATH)
-            self.slddCmd.send_adb_shell_command("adb shell reboot edl")
+            self.slddCmd.send_adb_shell_command("reboot edl")
             if not self.getQualcommPort():
                 return False
             return True
@@ -217,28 +214,36 @@ class FlashManager(QObject):
             return True
             
     def turnOnNormalMode(self):
-        self.mArduinomgr.sendCommandRequest(VBAT_OFF)
-        self.mArduinomgr.sendCommandRequest(BUB_OFF)
-        sleep(1)
-        self.mArduinomgr.sendCommandRequest(VBAT_ON)
+        if self.ArduinoPort != NO_PORT_CONNECTED:
+            mArduinomgr = ArduinoManager(self.ArduinoPort)
+            mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
+            mArduinomgr.sendCommandRequest(VCM_VBAT_OFF)
+            mArduinomgr.sendCommandRequest(BUB_OFF)
+            mArduinomgr.sendCommandRequest(BOOT_OFF)
+            sleep(1)
+            if self.boardName == JLR_TCUA:
+                mArduinomgr.sendCommandRequest(TCUA_VBAT_ON)
+            elif self.boardName == JLR_VCM:
+                mArduinomgr.sendCommandRequest(VCM_VBAT_ON)
 
     def turnOnBootMode(self):
+        if self.ArduinoPort != NO_PORT_CONNECTED:
+            mArduinomgr = ArduinoManager(self.ArduinoPort)
+            mArduinomgr.sendCommandRequest(BOOT_OFF)
+            mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
+            mArduinomgr.sendCommandRequest(BOOT_ON)
+            mArduinomgr.sendCommandRequest(TCUA_VBAT_ON) 
+            return True
+        else:
+            self.signal.emit("Cannot find arduino port")
+            return False
+        
+    def getArduinoPort(self): 
         ports = serial.tools.list_ports.comports()
         for port in ports:
             if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
                 self.ArduinoPort = f"{port.device}"
                 break
-
-        if self.ArduinoPort != NO_PORT_CONNECTED:
-            self.mArduinomgr = ArduinoManager(self.ArduinoPort)
-            self.mArduinomgr.sendCommandRequest(BUB_OFF)
-            self.mArduinomgr.sendCommandRequest(VBAT_OFF)
-            self.mArduinomgr.sendCommandRequest(BUB_ON)
-            self.mArduinomgr.sendCommandRequest(VBAT_ON) 
-            return True
-        else:
-            self.signal.emit("Cannot find arduino port")
-            return False
 
     def stop(self):
         if self.isFlashing:

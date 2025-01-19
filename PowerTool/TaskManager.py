@@ -100,8 +100,9 @@ class TaskManager(QtCore.QThread):
 
             elif (WAIT_FOR_DEVICE_READY == type):
                 self.waitForDevice()
-                self.slddCmd.forwardLog()
                 self.waitForBootComplete()
+                self.slddCmd.send_adb_shell_command("systemctl stop locationManager.service")
+                self.slddCmd.forwardLog()
 
             elif (START_TO_GET_LOGS == type):
                 self.dlt.start(self.mtestDatabase.getTCName(testCaseID))

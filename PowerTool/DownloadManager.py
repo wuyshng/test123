@@ -59,7 +59,7 @@ class DownloadManager(QObject):
                                         f"Image File: {self.imageFile}\n"
                                         f"Daily Repository: {dailyRepo}\n"
                                         f"Download from {url}\n"
-                                        f"Downloading image ...\n"
+                                        f"Downloading image ..."
                 )
                 self.isDownloading = True
                 downloaded_size = 0
@@ -91,7 +91,6 @@ class DownloadManager(QObject):
             tryDate = currentDate.strftime("%y%m%d")
             self.dailyRepo = tryDate
             tryURL = f"{baseURL}{self.dailyRepo}/{self.imageVersion}/{self.imageFile}"
-            print(f"tryURL: {tryURL}")
 
             if self.downloadImageFile(tryURL, destDir, username, password):
                 return True
@@ -112,7 +111,6 @@ class DownloadManager(QObject):
             self.dailyRepo = currentDate
 
             self.boardDir = self.createImageDirectory()
-            print(f"image store: {self.boardDir}\n")
 
             if self.downloadFromURL != NO_IMAGE_URL:
                 match = re.search(f"{boardInfo['ARTIFACTORY_BASE_URL']}(\\d+)", self.downloadFromURL)

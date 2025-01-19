@@ -27,7 +27,6 @@ class AutomateQFIL(QtCore.QThread):
         try:
             self.initQFILManager()
             self.handleAutomateQFIL()
-            resultSignal = QtCore.pyqtSignal(True)
         except Exception as e:
             self.signal.emit(f"Error during AutomateQFIL process: {e}")
             self.resultSignal.emit(False)
@@ -77,20 +76,22 @@ class AutomateQFIL(QtCore.QThread):
     def handleFlash(self):
         self.isRunning = True
         try:
-            self.mFlashManager.handleFlashImage()
+            result = self.mFlashManager.handleFlashImage()
             self.isRunning = False
-            return True
+            return result
         except Exception as e:
             self.isRunning = False
             self.signal.emit(f"Error during flash: {e}")
-            return False
     
     def handleDownloadAndFlash(self):
         if not self.handleDownload():
             self.signal.emit("Download failed, skipping flash.\n")
+            self.resultSignal.emit(False)
             return False
         if not self.handleFlash():
+            self.resultSignal.emit(False)
             return False
+        self.resultSignal.emit(True)
         
     def stop(self):
         if self.isRunning == True:

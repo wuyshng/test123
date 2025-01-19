@@ -15,7 +15,6 @@ LIST_TEST_DESCRIPTION   = {}
 LIST_EXPECTED_RESULT    = {}
 LIST_TC_POSITION        = {}
 
-MODULE              = "POWER"
 TC_NAME             = "TC_Name"
 TC_TEST_STEP        = "TEST_STEP"
 TC_DESCRIPTON       = "DESCRIPTION"
@@ -67,10 +66,14 @@ BOOTING          = "Booting"
 NOT_READY        = "Not_ready"
 
 # Power source control
-VBAT_ON          = "VBAT_ON"
-VBAT_OFF         = "VBAT_OFF"
+TCUA_VBAT_ON     = "TCUA_VBAT_ON"
+TCUA_VBAT_OFF    = "TCUA_VBAT_OFF"
+VCM_VBAT_ON      = "VCM_VBAT_ON"
+VCM_VBAT_OFF     = "VCM_VBAT_OFF"
 BUB_ON           = "BUB_ON"
 BUB_OFF          = "BUB_OFF"
+BOOT_ON          = "BOOT_ON"
+BOOT_OFF         = "BOOT_OFF"
 POWER_RESET      = "POWER_RESET"
 CONNECT_ARDUINO  = "CONNECT_ARDUINO"
 
@@ -184,3 +187,22 @@ TCUA_SITE_PASSWORD          = None
 
 # Localhost
 LOCALHOST_PORT              = 8010
+
+# ================================================================================================= #
+# --------------- \\          //  ----    = = = = =  ----  ||\\          //||  -------------------- #
+# ---------------- \\        //  -----  ||           ----  || \\        // ||  -------------------- #
+# ----------------- \\      //  ------  ||           ----  ||  \\      //  ||  -------------------- #
+# ------------------ \\    //  -------  ||           ----  ||   \\    //   ||  -------------------- #
+# ------------------- \\  //  --------  ||           ----  ||    \\  //    ||  -------------------- #
+# -------------------- \\//  ---------    = = = = =  ----  ||     \\//     ||  -------------------- #
+# ================================================================================================= #
+
+# Method for sending TC10
+METHOD_UNKNOWN  = "METHOD_UNKNOWN"
+METHOD_RADMOON  = "METHOD_RADMOON"
+METHOD_TWOBOARD = "METHOD_TWOBOARD"
+
+#RadMoon Type
+RM_CHECK_STATUS = "CHECK_STATUS"
+RM_WAKE_TC10    = "RM_WAKE_TC10"
+RM_SLEEP_TC10   = "RM_SLEEP_TC10"

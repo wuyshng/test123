@@ -149,6 +149,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.setUpActionLoadRobotTestCase()
         self.setUpStartFLButton()
         self.setUpStopFLButton()
+        self.setUpSelectRadMoonIDButton()
 
 # Setup Command for Menu bar ===========================================================
     def setupCommandForMenu(self):
@@ -300,6 +301,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
     def setUpStopFLButton(self):
         self.stopFLButton.clicked.connect(self.stopAutomateQFIL)
+    
+    def setUpSelectRadMoonIDButton(self):
+        self.SelectRadMoonIDButton.clicked.connect(self.SelectRadMoonIDHandle)
 
 # Send sldd command sellected ===========================================================
 
@@ -537,8 +541,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.ActiveCanBusButton.setEnabled(True)
         self.Console.append(message)
         self.mRunRobotTestScript.exit()
-        # if self.mRunRobotTestScript.result == True:
-        #     http_server = self.startHttpServer(self.outputDir)
+        if self.mRunRobotTestScript.result == True:
+            http_server = self.startHttpServer(self.outputDir)
 
     def onReceivedEvent(self, event):
         if (SIGNAL_SEND_CAN_NM == event):
@@ -634,7 +638,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.startTaskButton.setEnabled(True)
             self.ActiveCanBusButton.setEnabled(True)
             self.mTaskManager.stop()
-            self.mRunRobotTestScript.stop()
+            if self.testFileType == "robot":
+                self.mRunRobotTestScript.stop()
             self.testingOnGoing = False
 
 
@@ -666,11 +671,9 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.ledDisplayFailedResult.setProperty("value", self.countTestFailed)
         if self.testFileType == "json":
             self.TestResultDisplayer.setText(f"0/{self.totalTC}")
-        elif self.testFileType == "robot":
-            self.TestResultDisplayer.setText(f"0/{self.TestCaseEnabled}")
-        if self.testFileType == "json":
             self.clearTestResult()
         elif self.testFileType == "robot":
+            self.TestResultDisplayer.setText(f"0/{self.TestCaseEnabled}")
             self.clearRobotTestResult()
 
     def onHandlePowerReset(self):
@@ -696,9 +699,10 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             if (self.PowerOnButton.text() == "Power On"):
                 self.Console.setText("Connecting to Arduino ...")
                 mArduinomgr = ArduinoManager(self.ArduinoPort)
-                mArduinomgr.sendCommandRequest(VBAT_OFF)
+                mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
                 mArduinomgr.sendCommandRequest(BUB_OFF)
-                mArduinomgr.sendCommandRequest(VBAT_ON)
+                mArduinomgr.sendCommandRequest(BOOT_OFF)
+                mArduinomgr.sendCommandRequest(TCUA_VBAT_ON)
                 self.PowerOnButton.setText("Power Off")
                 self.ArduinoStatus.setText("Connected")
                 self.ArduinoStatus.setStyleSheet("background-color: rgb(180, 255, 186);\n"
@@ -707,7 +711,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
             elif (self.PowerOnButton.text() == "Power Off"):
                 mArduinomgr = ArduinoManager(self.ArduinoPort)
-                mArduinomgr.sendCommandRequest(VBAT_OFF)
+                mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
                 self.PowerOnButton.setText("Power On")
                 self.ArduinoStatus.setText("Disconnected")
                 self.ArduinoStatus.setStyleSheet("background-color: rgb(253, 255, 152);\n"
@@ -943,7 +947,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                 self.Console.setText("Cannot open the test result link because the test execution has stopped!")
                 return True
             else:
-                self.startHttpServer(self.outputDir)
                 url_match = re.search(r'href=[\'"]?([^\'" >]+)', obj.text())
                 if url_match:
                     url = url_match.group(1)
@@ -976,7 +979,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
     def turnOffVBAT(self):
         if self.ArduinoPort != NO_PORT_CONNECTED:
             mArduinomgr = ArduinoManager(self.ArduinoPort)
-            mArduinomgr.sendCommandRequest(VBAT_OFF)
+            mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
         else:
             self.show_alert("Failed to connect", "COM ports are not available")
 
@@ -1127,21 +1130,14 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.VCMSendingTC10BoardID = boardID
             print(self.VCMSendingTC10BoardID)
             self.mEthernetManager.setDeviceID(self.VCMSendingTC10BoardID)
+            self.mEthernetManager.setMethodSendingTC10(METHOD_TWOBOARD)
         print(f"onClickSendingTC10BoardConnectButton : {self.VCMSendingTC10BoardID}")
 
     def onClickTC10OnButton(self):
-        print(self.VCMSendingTC10BoardID)
-        if UNKNOWN_ID != self.VCMSendingTC10BoardID:
-            self.mEthernetManager.sendTC10On()
-        else:
-            print("DEVICE IS NOT FOUND --> CANNOT SENDING TC10 ON")
+        self.mEthernetManager.sendTC10On()
 
     def onClickTC10OffButton(self):
-        print(self.VCMSendingTC10BoardID)
-        if UNKNOWN_ID != self.VCMSendingTC10BoardID:
-            self.mEthernetManager.sendTC10Off()
-        else:
-            print("DEVICE IS NOT FOUND --> CANNOT SENDING TC10 OFF")
+        self.mEthernetManager.sendTC10Off()
 
 # Load TestCase Information to Table
     def open_file_dialog(self):
@@ -1173,7 +1169,6 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                             self.show_alert("Can not open robot file", "Please move file to a directory.")
                             return
 
-                        print(f"selected_files: {selected_files}")
                         return selected_files
                 else:
                     self.show_alert("Error", "No file selected.")
@@ -1196,10 +1191,8 @@ class UI_Power_tool(QObject, Ui_TestingTool):
 
         if filePath is False:
             path = self.open_file_dialog()
-            print(f"path: {path}")
         else:
             path = filePath
-            print(f"path2: {path}")
 
         if not path:
             self.show_alert("Failed to load Robot", "Please select robot file")
@@ -1222,7 +1215,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
         self.TestCaseData = load_data_from_json(JsonName)
         id = 0
         totalRow = 0
-        for test_case in self.TestCaseData[MODULE]:
+        for test_case in self.TestCaseData:
             id+=1
             LIST_TC_NAME.update({id: test_case[TC_NAME]})
 
@@ -1359,13 +1352,22 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.mAutomateQFIL.vcmDevice = "_".join(self.SWversionDisplayer.text().split("_")[:3])
         elif self.boardName == JLR_TCUA:
             self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/{version}/{IMAGE_FILE}')
-
+    
     def onClickImageVersion(self):
         if self.debugVersionButton.isChecked():
             self.setDefaultImageURL(DEBUG_IMAGE)
         elif self.perfVersionButton.isChecked():
             self.setDefaultImageURL(PERF_IMAGE)
         
+
+    def SelectRadMoonIDHandle(self):
+        RADMOONID = self.RadMoonID.text()
+        self.mEthernetManager.setRADMoonID(RADMOONID)
+        if (self.mEthernetManager.sendSignalByRadMoon(RM_CHECK_STATUS) != E_ERROR):
+            print("Setup RADMOON successfully")
+            self.mEthernetManager.setMethodSendingTC10(METHOD_RADMOON)
+        else:
+            print("Setup RADMOON failure")
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

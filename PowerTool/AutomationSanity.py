@@ -1,13 +1,15 @@
+
 import os
 import sys
 import schedule
-from time import sleep
+import time
 import logging
-from datetime import datetime
 from PyQt5.QtWidgets import QApplication, QMainWindow
-from PyQt5.QtCore import QThread, QObject, QTimer, QEventLoop
+from PyQt5.QtCore import QTimer, QEventLoop
 from Application import UI_Power_tool
+from ArduinoManager import ArduinoManager
 from commonVariable import *
+import serial.tools.list_ports
 
 # Configure logging
 logging.basicConfig(
@@ -19,78 +21,111 @@ logging.basicConfig(
 class AutomationSanity:
     def __init__(self):
         super().__init__()
-        # Create Qt application
         self.app = QApplication(sys.argv)
-
-        # Create QMainWindow instance first
         self.TestingTool = QMainWindow()
-        
-        # Create main application with TestingTool instance
         self.mainApp = UI_Power_tool(self.TestingTool)
-        self.TestingTool.show()  # Show the main window, not the UI_Power_tool directly
+        self.TestingTool.show()
 
         # Create timer for scheduling checks
         self.timer = QTimer()
-        self.timer.timeout.connect(self.checkShedule)
+        self.timer.timeout.connect(schedule.run_pending)
         self.timer.start(60000)
 
         # Initialize schedule
-        schedule.every().day.at("17:29:00").do(self.runAutomatedSanity)
-        logging.info("Automation sanity started")
+        schedule.every().day.at("10:00").do(self.runAutomatedSanity)
+        logging.info("================ Automation sanity started ================")
         print("Automation is running. Close the application to stop.")
 
     def runAutomatedSanity(self):
         try:
-            self.mainApp.perfVersionButton.setChecked(True)
-            self.mainApp.debugVersionButton.setChecked(True)
-            sleep(5)
-            if not self.handleAutomateQFIL():
-                return False
-
-            if not self.handleSanity():
-                return False
-            
+            for board in [JLR_VCM, JLR_TCUA]:
+                self.boardName = board
+                time.sleep(2)
+                if not self.handleAutomateQFIL():
+                    logging.warning(f"{self.boardName}: handleAutomateQFIL failed. Skipping handleAutomateSanity.")
+                    continue
+                self.turnOnVBATButton()
+                if not self.handleAutomateSanity():
+                    logging.warning(f"{self.boardName}: handleAutomateSanity failed.")
+                    continue
         except Exception as e:
-            logging.error(f"Error during automation: {str(e)}")
+            logging.error(f"{self.boardName}: Error during automation: {str(e)}")
 
     def checkDeviceStatus(self):
-        self.mainApp.mdeviceStatus = NORMAL
-        self.deviceStatus = self.mainApp.mdeviceStatus
-        logging.info(f"checkDeviceStatus: {self.deviceStatus}")
-        if not self.deviceStatus == NORMAL:
-            logging.error(f"Device is not ready to sanity. Please check your devices")
+        return self.mainApp.mdeviceStatus == NORMAL
+    
+    def waitForDeviceReady(self, timeout=300):
+        startTime = time.time()
+        logging.info(f"{self.boardName}: Waiting for device to reach NORMAL status...")
+        
+        def check_status():
+            if time.time() - startTime > timeout:
+                logging.warning(f"Device did not reach NORMAL status within {timeout} seconds.")
+                logging.warning(f"{self.boardName}: AutomateQFIL failed. Sanity test will not run.")
+                loop.quit()
+            elif self.checkDeviceStatus():
+                logging.info(f"{self.boardName}: Device reached NORMAL status.")
+                time.sleep(5)
+                loop.quit()
+        
+        timer = QTimer()
+        timer.timeout.connect(check_status)
+        timer.start(1000)
+
+        loop = QEventLoop()
+        loop.exec_()
+
+        if self.checkDeviceStatus():
+            return True
+        else:
             return False
-        return True
 
     def handleAutomateQFIL(self):
-        logging.info(f"handleAutomateQFIL")
+        logging.info(f"{self.boardName}: Starting AutomateQFIL process.")
         try:
-            if not self.checkDeviceStatus():
+            self.turnOnVBATButton()
+            if not self.waitForDeviceReady():
                 return False
             
             self.mainApp.downloadImgButton.setChecked(True)
             self.mainApp.flashImgButton.setChecked(True)
             
             result = QEventLoop()
-
-            def onResult(success):
-                result.exit(0 if success else 1)
-
-            self.mainApp.mAutomateQFIL.resultSignal.connect(onResult)
+            self.mainApp.mAutomateQFIL.resultSignal.connect(lambda success: result.exit(0 if success else 1))
             self.mainApp.startFLButton.click()
 
-            # Wait for QFIL to finish
             if result.exec_() != 0:
-                logging.error("AutomateQFIL failed.")
+                logging.error(f"{self.boardName}: AutomateQFIL failed.")
                 return False
-                
             return True
         except Exception as e:
-            logging.error(f"Error during AutomateQFIL process: {e}")
+            logging.error(f"{self.boardName}: Error AutomateQFIL: {e}")
+            return False
+        
+    def turnOnVBATButton(self):
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if "USB-SERIAL CH340" in port.description or "Arduino Uno" in port.description:
+                self.ArduinoPort = f"{port.device}"
+                break
+
+        if self.ArduinoPort != NO_PORT_CONNECTED:
+            mArduinomgr = ArduinoManager(self.ArduinoPort)
+            mArduinomgr.sendCommandRequest(BUB_OFF)
+            mArduinomgr.sendCommandRequest(BOOT_OFF)
+            mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
+            mArduinomgr.sendCommandRequest(VCM_VBAT_OFF)
+            if self.boardName == JLR_VCM:
+                mArduinomgr.sendCommandRequest(VCM_VBAT_ON)
+            if self.boardName == JLR_TCUA:
+                mArduinomgr.sendCommandRequest(TCUA_VBAT_ON)
+            return True
+        else:
+            self.signal.emit("Cannot find arduino port")
             return False
 
-    def handleSanity(self):
-        logging.info(f"handleSanity")
+    def handleAutomateSanity(self):
+        logging.info(f"{self.boardName}: Starting sanity process.")
         try:
             if not self.loadRobotFile():
                 return False
@@ -104,70 +139,59 @@ class AutomationSanity:
             return False
 
     def loadRobotFile(self):
+        logging.info(f"{self.boardName}: Loading Robot Framework files.")
         try:
-            logging.info("loadRobotFile")
             files = self.selectRobotFiles()
-            print(f"files: {files}")
-            logging.info(f"loadRobotFile, selected files: {files}")
+            if not files:
+                return False
             self.mainApp.loadRobotTestCase(files)
             return True
         except Exception as e:
-            logging.error(f"Error during load robot files: {e}")
+            logging.error(f"{self.boardName}: Error loading robot files: {e}")
             return False 
 
     def selectRobotFiles(self):
-        logging.info("selectRobotFiles")
-        if self.mainApp.boardName == JLR_VCM:
-            self.robotFilesPath = r"D:\01_TOOL\tiger-robot\testsuites_vcm"
-        elif self.mainApp.boardName == JLR_TCUA:
-            self.robotFilesPath = r"D:\01_TOOL\tiger-robot\testsuites_tcua"
-        else:
-            logging.error("Can not find board name")
+        boardPaths = {
+            JLR_VCM: r"D:\01_TOOL\tiger-robot\testsuites_vcm",
+            JLR_TCUA: r"D:\01_TOOL\tiger-robot\testsuites_tcua"
+        }
+
+        path = boardPaths.get(self.boardName)
+        if not path or not os.path.isdir(path):
+            logging.error("Invalid board name or directory.")
             return []
 
-        if not os.path.isdir(self.robotFilesPath):
-            raise ValueError("The provided path is not a valid directory.")
-        
-        selected_files = [os.path.join(self.robotFilesPath, file) 
-                        for file in os.listdir(self.robotFilesPath) 
-                        if os.path.isfile(os.path.join(self.robotFilesPath, file))]
-        logging.info(f"selected_files: {selected_files}")
-        self.mainApp.robotFilePath = os.path.dirname(selected_files[0])
-        self.mainApp.parentSuite = os.path.basename(self.mainApp.robotFilePath)
-        return selected_files
-        
-    def startSanityTest(self):
-        try:
-            logging.info(f"startSanityTest")
-            while not self.checkDeviceStatus():
-                logging.info("Device status is not NORMAL, waiting...")
-                time.sleep(1)
+        files = [os.path.join(path, f) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
-            if not self.checkDeviceStatus():
+        if files:
+            self.mainApp.robotFilePath = os.path.dirname(files[0])
+            self.mainApp.parentSuite = os.path.basename(self.mainApp.robotFilePath)
+
+        return files
+
+    def startSanityTest(self):
+        logging.info(f"{self.boardName}: Starting sanity test.")
+        try:
+            if not self.waitForDeviceReady():
                 return False
-            
+
             self.mainApp.startTaskButton.click()
-            logging.info(f"Running sanity test...")
+            logging.info(f"{self.boardName}: Sanity test running...")
+            while not self.mainApp.startTaskButton.isEnabled():
+                QApplication.processEvents()  # Keeps the UI responsive
+                time.sleep(0.1)
+            print("All test finished")
             return True
         except Exception as e:
-            logging.error(f"Error during run test: {e}")
+            logging.error(f"{self.boardName}: Error during sanity test: {e}")
             return False
 
-    def checkShedule(self):
-        """Check and run pending scheduled tasks"""
-        schedule.run_pending()
-
     def run(self):
-        """Start the application main loop"""
         return self.app.exec_()
 
 def main():
     sanity = AutomationSanity()
-
-    # Run the task once immediately for testing
-    QTimer.singleShot(1000, sanity.runAutomatedSanity)
-    
-    # Start the application
+    # QTimer.singleShot(1000, sanity.runAutomatedSanity)
     sys.exit(sanity.run())
 
 if __name__ == "__main__":

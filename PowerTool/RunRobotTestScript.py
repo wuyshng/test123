@@ -105,7 +105,6 @@ class RobotListener(ListenerV3):
         self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Output:  {os.path.normpath(path)}</pre>")
 
     def log_file(self, path):
-        print(f"countRobotFile: {self.countRobotFile}")
         if self.countRobotFile == 1:
             newLog = f"{self.suiteName}_log.html"
             newPath = path.with_name(newLog)
@@ -118,11 +117,20 @@ class RobotListener(ListenerV3):
         self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Log:     {os.path.normpath(path)}</pre>")
 
     def report_file(self, path):
+        if self.countRobotFile == 1:
+            newLog = f"{self.suiteName}_report.html"
+            newPath = path.with_name(newLog)
+            shutil.copy(path, newPath)
+        elif self.countRobotFile > 1:
+            newLog = f"{self.parentSuiteName}_report.html"
+            newPath = path.with_name(newLog)
+            shutil.copy(path, newPath)
+
         self.logSignal.emit(f"<pre style='font-family: Consolas; font-size: 24px;'>Report:  {os.path.normpath(path)}</pre>")
 
 class RunRobotTestScript(QtCore.QThread):
     signal = pyqtSignal(list, int, str)
-    testResultSignal = pyqtSignal(str, str) 
+    testResultSignal = pyqtSignal(str, str)
     finishedSignal = pyqtSignal(str)
     logSignal = pyqtSignal(str)
     testCountSignal = pyqtSignal(int)
@@ -142,9 +150,7 @@ class RunRobotTestScript(QtCore.QThread):
     def run(self):
         self.addParentSuiteToSelectedTest(self.parentSuite)
         self.testSuites = os.path.basename(self.robotFilePath)
-        print(f"testSuites: {self.testSuites}")
         try:
-            print(f"self.robotFilePath: {self.robotFilePath}\nself.testSuites: {self.testSuites}\nself.selectedTests: {self.selectedTests}\n")
             run(self.robotFilePath, suite=self.testSuites, test=self.selectedTests, outputdir=self.outputDir,
                 listener=RobotListener(self.stop_event, self.logSignal, self.signal, self.testSuites))
 
@@ -162,7 +168,6 @@ class RunRobotTestScript(QtCore.QThread):
 
         for fileName, testName, testStatus in message:
             testInfo = f"{fileName}:::{testName}:::{testStatus}"
-            print(f"\ntestInfo: {testInfo}")
             self.testCountSignal.emit(self.countTestResult)
             self.testResultSignal.emit(testInfo, fragment)
 
@@ -174,3 +179,4 @@ class RunRobotTestScript(QtCore.QThread):
 
     def stop(self):
         self.stop_event.set()
+        

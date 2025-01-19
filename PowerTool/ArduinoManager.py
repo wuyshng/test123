@@ -15,13 +15,21 @@ class ArduinoManager():
             print(f"Serial port {self.ser.name} is open")
         try:
             # Send a message to the Arduino
-            if cmdRequest == VBAT_ON:
-                self.ser.write(b"\nVBAT_ON\n")
-                print("________________REQUEST VBAT_ON: OK_____________________\n")
+            if cmdRequest == TCUA_VBAT_ON:
+                self.ser.write(b"\nTCUA_VBAT_ON\n")
+                print("________________REQUEST TCUA_VBAT_ON: OK_____________________\n")
 
-            elif cmdRequest == VBAT_OFF:
-                self.ser.write(b"\nVBAT_OFF\n")
-                print("________________REQUEST VBAT_OFF: OK____________________\n")
+            elif cmdRequest == TCUA_VBAT_OFF:
+                self.ser.write(b"\nTCUA_VBAT_OFF\n")
+                print("________________REQUEST TCUA_VBAT_OFF: OK____________________\n")
+
+            elif cmdRequest == VCM_VBAT_ON:
+                self.ser.write(b"\nVCM_VBAT_ON\n")
+                print("________________REQUEST VCM_VBAT_ON: OK_____________________\n")
+
+            elif cmdRequest == VCM_VBAT_OFF:
+                self.ser.write(b"\nVCM_VBAT_OFF\n")
+                print("________________REQUEST VCM_VBAT_OFF: OK____________________\n")
 
             elif cmdRequest == POWER_RESET:
                 self.ser.write(b"\nPOWER_RESET\n")
@@ -39,6 +47,14 @@ class ArduinoManager():
                 self.ser.write(b"\nBUB_OFF\n")
                 print("________________REQUEST BUB_OFF: OK_____________________\n")
 
+            elif cmdRequest == BOOT_ON:
+                self.ser.write(b"\BOOT_ON\n")
+                print("________________REQUEST BOOT_ON: OK_____________________\n")
+
+            elif cmdRequest == BOOT_OFF:
+                self.ser.write(b"\BOOT_OFF\n")
+                print("________________REQUEST BOOT_OFF: OK_____________________\n")
+
             # Read and print the response from the Arduino
             response = self.ser.readline().decode('utf-8')
             print(f"Arduino responed: {response}")
@@ -49,9 +65,9 @@ class ArduinoManager():
 
 if __name__ == '__main__':
     mArduinoManager = ArduinoManager("COM17")
-    mArduinoManager.sendCommandRequest(VBAT_ON)
+    mArduinoManager.sendCommandRequest(TCUA_VBAT_ON)
     sleep(1)
-    mArduinoManager.sendCommandRequest(VBAT_OFF)
+    mArduinoManager.sendCommandRequest(TCUA_VBAT_OFF)
     sleep(1)
     mArduinoManager.sendCommandRequest(POWER_RESET)
     sleep(1)

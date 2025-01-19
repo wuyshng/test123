@@ -44,3 +44,5 @@ typing_extensions==4.12.2
 tzdata==2024.1
 wrapt==1.16.0
 zipp==3.19.2
+robotframework==7.1.1
+schedule==1.2.2
