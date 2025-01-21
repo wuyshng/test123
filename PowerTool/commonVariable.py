@@ -206,3 +206,19 @@ METHOD_TWOBOARD = "METHOD_TWOBOARD"
 RM_CHECK_STATUS = "CHECK_STATUS"
 RM_WAKE_TC10    = "RM_WAKE_TC10"
 RM_SLEEP_TC10   = "RM_SLEEP_TC10"
+
+COLLAB_BASE_URL     = "https://collab.lge.com/main"
+COLLAB_SPACE        = "DCVCMUDN"
+PARENT_PAGE_TITLE   = "tiger-robot Daily test"
+FILE_NAMES          = {
+    'JLR_VCM': {
+        'log': 'testsuites_vcm_log.html',
+        'report': 'testsuites_vcm_report.html'
+    },
+    'JLR_TCUA': {
+        'log': 'testsuites_tcua_log.html',
+        'report': 'testsuites_tcua_report.html'
+    }
+}
+PAT = "PAT"
+STYLE_FILE_NAME = r"style.html"

@@ -1,15 +1,15 @@
-
 import os
 import sys
-import schedule
 import time
 import logging
-from PyQt5.QtWidgets import QApplication, QMainWindow
-from PyQt5.QtCore import QTimer, QEventLoop
-from Application import UI_Power_tool
-from ArduinoManager import ArduinoManager
+import schedule
 from commonVariable import *
 import serial.tools.list_ports
+from Application import UI_Power_tool
+from ArduinoManager import ArduinoManager
+from AutomateReportOnCollab import AutomateReportOnCollab
+from PyQt5.QtCore import QTimer, QEventLoop
+from PyQt5.QtWidgets import QApplication, QMainWindow
 
 # Configure logging
 logging.basicConfig(
@@ -25,6 +25,7 @@ class AutomationSanity:
         self.TestingTool = QMainWindow()
         self.mainApp = UI_Power_tool(self.TestingTool)
         self.TestingTool.show()
+        self.mAutomateReportOnCollab = AutomateReportOnCollab()
 
         # Create timer for scheduling checks
         self.timer = QTimer()
@@ -39,15 +40,25 @@ class AutomationSanity:
     def runAutomatedSanity(self):
         try:
             for board in [JLR_VCM, JLR_TCUA]:
+                self.mAutomateReportOnCollab.isError = ""
                 self.boardName = board
                 time.sleep(2)
+
                 if not self.handleAutomateQFIL():
                     logging.warning(f"{self.boardName}: handleAutomateQFIL failed. Skipping handleAutomateSanity.")
+                    self.mAutomateReportOnCollab.getPageBody()
                     continue
-                self.turnOnVBATButton()
+
+                if not self.turnOnVBATButton():
+                    continue
+
                 if not self.handleAutomateSanity():
                     logging.warning(f"{self.boardName}: handleAutomateSanity failed.")
                     continue
+
+                self.mAutomateReportOnCollab.getPageBody()
+
+            self.mAutomateReportOnCollab.createDailySanityPage()            
         except Exception as e:
             logging.error(f"{self.boardName}: Error during automation: {str(e)}")
 
@@ -60,7 +71,8 @@ class AutomationSanity:
         
         def check_status():
             if time.time() - startTime > timeout:
-                logging.warning(f"Device did not reach NORMAL status within {timeout} seconds.")
+                logging.warning(f"{self.boardName}: Device did not reach NORMAL status within {timeout} seconds.")
+                self.mAutomateReportOnCollab.isError = f"Device did not reach NORMAL status within {timeout} seconds."
                 logging.warning(f"{self.boardName}: AutomateQFIL failed. Sanity test will not run.")
                 loop.quit()
             elif self.checkDeviceStatus():
@@ -96,6 +108,7 @@ class AutomationSanity:
 
             if result.exec_() != 0:
                 logging.error(f"{self.boardName}: AutomateQFIL failed.")
+                self.mAutomateReportOnCollab.isError = "Daily image build error."
                 return False
             return True
         except Exception as e:
@@ -121,7 +134,6 @@ class AutomationSanity:
                 mArduinomgr.sendCommandRequest(TCUA_VBAT_ON)
             return True
         else:
-            self.signal.emit("Cannot find arduino port")
             return False
 
     def handleAutomateSanity(self):
@@ -135,7 +147,7 @@ class AutomationSanity:
             
             return True
         except Exception as e:
-            logging.error(f"Error during sanity process: {e}")
+            logging.error(f"{self.boardName}: Error during sanity process: {e}")
             return False
 
     def loadRobotFile(self):
@@ -191,7 +203,7 @@ class AutomationSanity:
 
 def main():
     sanity = AutomationSanity()
-    # QTimer.singleShot(1000, sanity.runAutomatedSanity)
+    QTimer.singleShot(1000, sanity.runAutomatedSanity)
     sys.exit(sanity.run())
 
 if __name__ == "__main__":
