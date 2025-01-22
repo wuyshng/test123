@@ -26,6 +26,7 @@ class AutomationSanity:
         self.mainApp = UI_Power_tool(self.TestingTool)
         self.TestingTool.show()
         self.mAutomateReportOnCollab = AutomateReportOnCollab()
+        self.mAutomateReportOnCollab.createDailySanityPage()
 
         # Create timer for scheduling checks
         self.timer = QTimer()
@@ -39,14 +40,15 @@ class AutomationSanity:
 
     def runAutomatedSanity(self):
         try:
-            for board in [JLR_VCM, JLR_TCUA]:
+            # for board in [JLR_VCM, JLR_TCUA]:
+            for board in [JLR_TCUA, JLR_VCM]:
                 self.mAutomateReportOnCollab.isError = ""
                 self.boardName = board
                 time.sleep(2)
 
                 if not self.handleAutomateQFIL():
                     logging.warning(f"{self.boardName}: handleAutomateQFIL failed. Skipping handleAutomateSanity.")
-                    self.mAutomateReportOnCollab.getPageBody()
+                    self.mAutomateReportOnCollab.updateDailySanityPage(self.boardName)
                     continue
 
                 if not self.turnOnVBATButton():
@@ -56,9 +58,7 @@ class AutomationSanity:
                     logging.warning(f"{self.boardName}: handleAutomateSanity failed.")
                     continue
 
-                self.mAutomateReportOnCollab.getPageBody()
-
-            self.mAutomateReportOnCollab.createDailySanityPage()            
+                self.mAutomateReportOnCollab.updateDailySanityPage(self.boardName)            
         except Exception as e:
             logging.error(f"{self.boardName}: Error during automation: {str(e)}")
 
@@ -190,7 +190,7 @@ class AutomationSanity:
             self.mainApp.startTaskButton.click()
             logging.info(f"{self.boardName}: Sanity test running...")
             while not self.mainApp.startTaskButton.isEnabled():
-                QApplication.processEvents()  # Keeps the UI responsive
+                QApplication.processEvents()
                 time.sleep(0.1)
             print("All test finished")
             return True
@@ -203,7 +203,7 @@ class AutomationSanity:
 
 def main():
     sanity = AutomationSanity()
-    QTimer.singleShot(1000, sanity.runAutomatedSanity)
+    # QTimer.singleShot(1000, sanity.runAutomatedSanity)
     sys.exit(sanity.run())
 
 if __name__ == "__main__":

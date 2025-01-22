@@ -46,3 +46,6 @@ wrapt==1.16.0
 zipp==3.19.2
 robotframework==7.1.1
 schedule==1.2.2
+jira==3.8.0
+atlassian-python-api==3.41.18
+beautifulsoup4==4.12.3

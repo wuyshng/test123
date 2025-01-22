@@ -1,9 +1,8 @@
 import os
-from zipfile import ZipFile
+import shutil
 from datetime import datetime
 from commonVariable import *
 from atlassian import Confluence
-from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 class AutomateReportOnCollab:
@@ -13,7 +12,7 @@ class AutomateReportOnCollab:
         try:
             self.confluence = Confluence(url=COLLAB_BASE_URL, token=PAT)
 
-            sourceDir = os.path.dirname(os.path.abspath(__file__))
+            sourceDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             self.outputDir = os.path.join(sourceDir, "output")
         except Exception as e:
             print(f"Error: {e}")
@@ -24,30 +23,21 @@ class AutomateReportOnCollab:
         else:
             raise ValueError(f"Can not found in files with {boardName}")
 
-    def archiveFiles(self, boardName):
-        if not os.path.exists(self.outputDir):
-            raise FileNotFoundError(f"The directory {self.outputDir} does not exist.")
-        
-        files = self.getSanityResultFiles(boardName)
-        files_to_archive = []
-        for file_type in ['log', 'report']:
-            file_path = os.path.join(self.outputDir, files[file_type])
-            if os.path.exists(file_path):
-                files_to_archive.append(file_path)
-            else:
-                print(f"Warning: The file {files[file_type]} does not exist in the directory.")
-        
-        if files_to_archive:
-            archive_path = os.path.join(self.outputDir, f"{boardName}.zip")
-            with ZipFile(archive_path, 'w') as archive:
-                for file in files_to_archive:
-                    archive.write(file, os.path.basename(file))
-            print(f"Files have been archived to: {archive_path}")
-            return archive_path
-        else:
-            print("No files to archive.")
-            return None
-        
+    def storeResultFiles(self, boardName):
+        current_date = datetime.now().strftime("%Y%m%d")
+        new_folder = f"{boardName}_{current_date}"
+        new_folder_path = os.path.join(TEST_REPORT_PATH, new_folder)
+        os.makedirs(new_folder_path, exist_ok=True)
+
+        log_html_path = os.path.join(self.outputDir, "log.html")
+        report_html_path = os.path.join(self.outputDir, "report.html")
+
+        shutil.copy(log_html_path, new_folder_path)
+        shutil.copy(report_html_path, new_folder_path)
+
+        report_html_new_path = os.path.join(new_folder_path, "report.html")
+        return report_html_new_path
+
     def authenticatePage(self):
         try:
             result = self.confluence.page_exists(space=COLLAB_SPACE, title=PARENT_PAGE_TITLE)
@@ -57,28 +47,39 @@ class AutomateReportOnCollab:
 
     def createDailySanityPage(self):
         if not self.authenticatePage():
-            print("[Page not found.]")
+            print("Page not found.")
             return False
         
-        parentPageID = self.confluence.get_page_id(space=COLLAB_SPACE, title=PARENT_PAGE_TITLE)
-        newPageTitle = self.getNewPageTitle()
-        pageBody = self.getPageBody()
-
         try:
-            self.confluence.create_page(space=COLLAB_SPACE, title=newPageTitle, body=pageBody, parent_id=parentPageID)
-
+            self.parentPageID = self.confluence.get_page_id(space=COLLAB_SPACE, title=PARENT_PAGE_TITLE)
+            self.newPageTitle = self.getNewPageTitle()
+            page = self.confluence.get_page_by_title(space=COLLAB_SPACE, title=self.newPageTitle)
+            if not page:
+                page = self.confluence.create_page(space=COLLAB_SPACE, title=self.newPageTitle, body="", parent_id=self.parentPageID)
+            self.page_id = page['id']
+            
         except Exception as e:
             print(f"Failed to create page: {e}")
 
+    def updateDailySanityPage(self, boardName):
+        self.boardName = boardName
+        if self.isError == "":
+            report_file_path = self.storeResultFiles(self.boardName)
+            self.content += self.updatePageBody(report_file_path)
+            self.confluence.update_page(page_id=self.page_id, title=self.newPageTitle, body=self.content, parent_id=self.parentPageID)
+        else:
+            self.content += f"""
+            <h1><strong>{self.boardName}</strong></h1>
+            <p>{self.isError}</p>
+            """
+            self.confluence.update_page(page_id=self.page_id, title=self.newPageTitle, body=self.content, parent_id=self.parentPageID)
+
     def getNewPageTitle(self):
-        current_date = datetime.now().strftime("%d/%m")
+        current_date = datetime.now().strftime("%Y%m%d")
         return f"Daily sanity test {current_date}"
     
-    def getPageBody(self):
-        self.content += self.updatePageBody
-    
     def getTestStatisticsContent(self):
-        reportFile = FILE_NAMES[self.boardName]['report'] 
+        reportFile = FILE_NAMES[self.boardName]['report']
         reportFilePath = os.path.abspath(os.path.join(self.outputDir, reportFile))
         print(f"reportFilePath: {reportFilePath}")
 
@@ -93,9 +94,8 @@ class AutomateReportOnCollab:
             browser.close()
             return content
         
-    def combineContentWithStyel(self):
+    def combineContentWithStyle(self):
         content = self.getTestStatisticsContent()
-
         current_dir = os.path.dirname(os.path.abspath(__file__))
         style_file_path = os.path.join(current_dir, STYLE_FILE_NAME)
 
@@ -106,52 +106,29 @@ class AutomateReportOnCollab:
             style_content = style_file.read()
 
         combined_html = f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
             {style_content}
-            </style>
-        </head>
-        <body>
             {content}
-        </body>
-        </html>
         """
-
         return combined_html
     
-    def updatePageBody(self):
-        if self.isError != "":
-            content = f"""
-            <h1><strong>{self.boardName}</strong></h1>
-            <p>{self.isError}</p>
-            """
-        else:
-            archive_path = self.archiveFiles(self.boardName)
-            archive_filename = os.path.basename(archive_path)
-            combined_html = self.combineContentWithStyel()
+    def updatePageBody(self, report_file_path):
+        combined_html = self.combineContentWithStyle()
 
-            macro_body = f'''
-            <ac:structured-macro ac:name="html">
-                <ac:plain-text-body><![CDATA[{combined_html}]]></ac:plain-text-body>
-            </ac:structured-macro>
-            '''
+        macro_body = f'''
+        <ac:structured-macro ac:name="html">
+            <ac:plain-text-body><![CDATA[{combined_html}]]></ac:plain-text-body>
+        </ac:structured-macro>
+        '''
 
-            content = f"""
-            <h1><strong>{self.boardName}</strong></h1>
-            <a href="file://{archive_path}" download="{archive_filename}">{archive_filename}</a>
-            {macro_body}
-            """
-        
+        content = f"""
+        <h1><strong>{self.boardName}</strong></h1>
+        <p>file:{report_file_path}</p>
+        {macro_body}
+        """
         return content
 
-
-if __name__ == "__main__":
-    automate_report = AutomateReportOnCollab(r"D:\01_TOOL\tiger-robot\output")
-    # automate_report.archiveFiles("JLR_VCM", r"D:\01_TOOL\tiger-robot\output")
-    # automate_report.createDailySanityPage()
-    # automate_report.getTestStatisticsContent()
-    automate_report.updatePageBody()
+# if __name__ == "__main__":
+#     automate_report = AutomateReportOnCollab()
+#     automate_report.createDailySanityPage()
+#     automate_report.updateDailySanityPage(JLR_TCUA)
+#     automate_report.updateDailySanityPage(JLR_VCM)

@@ -207,10 +207,15 @@ RM_CHECK_STATUS = "CHECK_STATUS"
 RM_WAKE_TC10    = "RM_WAKE_TC10"
 RM_SLEEP_TC10   = "RM_SLEEP_TC10"
 
-COLLAB_BASE_URL     = "https://collab.lge.com/main"
+# Collab Page
+COLLAB_BASE_URL     = "http://collab.lge.com/main"
+PAT                 = "NzUyMDA0NTk1ODU2Oj1jQUw0HtTLN6u0XxmY28rk4NPP"
 COLLAB_SPACE        = "DCVCMUDN"
 PARENT_PAGE_TITLE   = "tiger-robot Daily test"
-FILE_NAMES          = {
+TEST_REPORT_PATH    = r"\\lgedv-danang\CONNECTIVITY\02_Projects\JLR EVA3\99_TestReport"
+SEVEN_ZIP_PATH      = r"C:\Program Files\7-Zip\7z.exe"
+
+FILE_NAMES = {
     'JLR_VCM': {
         'log': 'testsuites_vcm_log.html',
         'report': 'testsuites_vcm_report.html'
@@ -220,5 +225,5 @@ FILE_NAMES          = {
         'report': 'testsuites_tcua_report.html'
     }
 }
-PAT = "PAT"
-STYLE_FILE_NAME = r"style.html"
+
+STYLE_FILE_NAME     = "style.html"

@@ -231,7 +231,9 @@ class FlashManager(QObject):
             mArduinomgr = ArduinoManager(self.ArduinoPort)
             mArduinomgr.sendCommandRequest(BOOT_OFF)
             mArduinomgr.sendCommandRequest(TCUA_VBAT_OFF)
+            sleep(1)
             mArduinomgr.sendCommandRequest(BOOT_ON)
+            sleep(1)
             mArduinomgr.sendCommandRequest(TCUA_VBAT_ON) 
             return True
         else:

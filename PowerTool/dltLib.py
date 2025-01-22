@@ -89,4 +89,4 @@ class DltClient:
 
 if __name__=='__main__':
     dlt = DltClient()
-    dlt.check_equal('onNotifyExtValueChanged : from ID(who)=0x10 value[1] = 5555')
+    dlt.start("TEST_GENERATE_DLT")

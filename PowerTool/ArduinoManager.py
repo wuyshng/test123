@@ -48,11 +48,11 @@ class ArduinoManager():
                 print("________________REQUEST BUB_OFF: OK_____________________\n")
 
             elif cmdRequest == BOOT_ON:
-                self.ser.write(b"\BOOT_ON\n")
+                self.ser.write(b"\nBOOT_ON\n")
                 print("________________REQUEST BOOT_ON: OK_____________________\n")
 
             elif cmdRequest == BOOT_OFF:
-                self.ser.write(b"\BOOT_OFF\n")
+                self.ser.write(b"\nBOOT_OFF\n")
                 print("________________REQUEST BOOT_OFF: OK_____________________\n")
 
             # Read and print the response from the Arduino
