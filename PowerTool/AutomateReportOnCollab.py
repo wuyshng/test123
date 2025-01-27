@@ -9,6 +9,7 @@ class AutomateReportOnCollab:
     def __init__(self):
         self.isError = ""
         self.content = ""
+        self.finished = False
         try:
             self.confluence = Confluence(url=COLLAB_BASE_URL, token=PAT)
 
@@ -63,11 +64,11 @@ class AutomateReportOnCollab:
 
     def updateDailySanityPage(self, boardName):
         self.boardName = boardName
-        if self.isError == "":
+        if self.isError == "" and self.finished == True:
             report_file_path = self.storeResultFiles(self.boardName)
             self.content += self.updatePageBody(report_file_path)
             self.confluence.update_page(page_id=self.page_id, title=self.newPageTitle, body=self.content, parent_id=self.parentPageID)
-        else:
+        elif self.isError != "":
             self.content += f"""
             <h1><strong>{self.boardName}</strong></h1>
             <p>{self.isError}</p>

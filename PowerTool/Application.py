@@ -888,10 +888,7 @@ class UI_Power_tool(QObject, Ui_TestingTool):
                                             "border-color: rgb(115, 172, 172);")
                 self.Console.append("Booting completed !\n")
                 self.setDefaultImageURL()
-                if self.boardName == JLR_VCM:
-                    self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata VCMLoggingOnOff 1")
-                if self.boardName == JLR_TCUA:
-                    self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata TCUALoggingOnOff 1")
+                self.enableLog()
 
             elif self.mdeviceStatus == DISCONNECTED:
                 self.deviceStatus.setStyleSheet("background-color: rgb(253, 255, 152);\n"
@@ -1352,6 +1349,12 @@ class UI_Power_tool(QObject, Ui_TestingTool):
             self.mAutomateQFIL.vcmDevice = "_".join(self.SWversionDisplayer.text().split("_")[:3])
         elif self.boardName == JLR_TCUA:
             self.downloadImgURL.setText(f'{TCUA_ARTIFACTORY_BASE_URL}{datetime.now().strftime("%y%m%d")}/{version}/{IMAGE_FILE}')
+
+    def enableLog(self):
+        if self.boardName == JLR_VCM:
+            self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata VCMLoggingOnOff 1")
+        elif self.boardName == JLR_TCUA:
+            self.slddCmd.send_adb_shell_command("sldd cfg setConfigData provisioneddata TCUALoggingOnOff 1")
     
     def onClickImageVersion(self):
         if self.debugVersionButton.isChecked():

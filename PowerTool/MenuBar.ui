@@ -893,7 +893,7 @@ border-color: rgb(115, 172, 172);</string>
       </font>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="TCUA">
       <attribute name="title">
@@ -1522,9 +1522,9 @@ border-color: rgb(115, 172, 172);</string>
        </widget>
       </widget>
      </widget>
-     <widget class="QWidget" name="FlashLoader">
+     <widget class="QWidget" name="IMAGE">
       <attribute name="title">
-       <string>FlashLoader</string>
+       <string>IMAGE</string>
       </attribute>
       <widget class="QPushButton" name="startFLButton">
        <property name="geometry">
@@ -1631,7 +1631,7 @@ color: rgb(51, 51, 51);</string>
         <string>Enter URL</string>
        </property>
       </widget>
-      <widget class="QWidget" name="">
+      <widget class="QWidget" name="layoutWidget">
        <property name="geometry">
         <rect>
          <x>260</x>
@@ -2016,7 +2016,7 @@ color: rgb(51, 51, 51);</string>
      <x>0</x>
      <y>0</y>
      <width>1888</width>
-     <height>30</height>
+     <height>26</height>
     </rect>
    </property>
    <property name="font">

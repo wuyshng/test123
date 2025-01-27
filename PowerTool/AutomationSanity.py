@@ -12,8 +12,11 @@ from PyQt5.QtCore import QTimer, QEventLoop
 from PyQt5.QtWidgets import QApplication, QMainWindow
 
 # Configure logging
+baseDir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+outputDir = os.path.join(baseDir, "output")
+log_file_path = os.path.join(outputDir, 'automationSanity.log')
 logging.basicConfig(
-    filename='automationSanity.log',
+    filename=log_file_path,
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
@@ -40,9 +43,9 @@ class AutomationSanity:
 
     def runAutomatedSanity(self):
         try:
-            # for board in [JLR_VCM, JLR_TCUA]:
-            for board in [JLR_TCUA, JLR_VCM]:
+            for board in [JLR_VCM, JLR_TCUA]:
                 self.mAutomateReportOnCollab.isError = ""
+                self.mAutomateReportOnCollab.finished = False
                 self.boardName = board
                 time.sleep(2)
 
@@ -58,6 +61,7 @@ class AutomationSanity:
                     logging.warning(f"{self.boardName}: handleAutomateSanity failed.")
                     continue
 
+                self.mAutomateReportOnCollab.finished = True
                 self.mAutomateReportOnCollab.updateDailySanityPage(self.boardName)            
         except Exception as e:
             logging.error(f"{self.boardName}: Error during automation: {str(e)}")
